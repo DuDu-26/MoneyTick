@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">摸鱼币</string>
+    <string name="notification_channel">悬浮窗</string>
+    <string name="notification_title">悬浮窗运行中</string>
+    <string name="notification_stop">关闭悬浮窗</string>
+</resources>
