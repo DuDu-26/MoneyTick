@@ -21,7 +21,7 @@
 
 ## 下载
 
-到 [Releases](../../releases/latest) 下载最新的 `MoneyTick-版本号.apk`。
+到 [Releases](../../releases/latest) 下载最新的 `MoneyTick-v版本号.apk`。每次改 `app/build.gradle.kts` 里的 `versionName` 并推送到 main，CI 会自动发布新版本。
 
 首次开启悬浮窗需要授予「显示在其他应用上层」权限。
 
