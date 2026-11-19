@@ -46,7 +46,7 @@ jobs:
       # Releases are automatic: when versionName in app/build.gradle.kts is new, publish v<versionName>.
       - name: Check for new version
         id: version
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.MT_KEYSTORE_FILE != ''
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && env.MT_KEYSTORE_FILE != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
