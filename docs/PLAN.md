@@ -18,7 +18,7 @@ PayDance 是 Windows 桌面实时工资看板（Tauri 2 + Vue 3），核心功�
 | 迷你悬浮窗 | 只显示金额，可拖拽置顶，透明度 10%–100%，双击回主窗口 | ✅ 阶段 1（并扩展） |
 | 货币符号 | 自定义，最多 4 个字符，可留空 | ✅ 阶段 1 |
 | 配置校验 | 简洁、可执行的错误提示 | ✅ 阶段 1 |
-| 金额滚动动画 | 滚动变换 / 直接变换 | ⏳ 阶段 2（设置已有，动画待做） |
+| 金额滚动动画 | 滚动变换 / 直接变换 | ✅ v0.2（仅主界面；悬浮窗为省电不做动画） |
 | 首次启动向导 | 三步：薪资模式 → 工作时间 → 偏好 | ⏳ 阶段 2 |
 | 亮暗主题 | 跟随系统 / 浅色 / 深色 | ✅ 阶段 1 |
 | 中英双语 | 界面全量双语 | ⏳ 阶段 3 |
@@ -35,6 +35,7 @@ PayDance 是 Windows 桌面实时工资看板（Tauri 2 + Vue 3），核心功�
 - **悬浮窗**：`SYSTEM_ALERT_WINDOW` 权限 + 前台服务（Android 14 起使用 `specialUse` 类型）+ `WindowManager` 的 `TYPE_APPLICATION_OVERLAY` 窗口，内容用 `ComposeView` 绘制。
   - 拖动/缩放用原始屏幕坐标计算，避免窗口移动造成抖动；松手后把位置、尺寸写回设置。
   - 设置页改动通过 `StateFlow` 实时推给悬浮窗，所见即所得（设置页有预览）。
+- **省电**：刷新由 `nextTickDelayMs` 决定，上班时按“每涨 1 分钱”刷新（或用户选的 1 秒 / 5 秒 / 1 分钟），倒计时阶段每秒，下班/休息日每分钟；息屏（`ACTION_SCREEN_OFF`）和 Activity 不可见时计时协程直接停掉，不保持唤醒锁。
 - **存储**：`SharedPreferences` 里存一份 JSON（kotlinx.serialization），带 `schemaVersion`，损坏时回落默认值。
 - **构建与发布**：GitHub Actions 每次推送跑测试、打 APK；打 `v*` 标签发布到 Releases。
 

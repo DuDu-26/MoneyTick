@@ -7,11 +7,14 @@ import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import android.view.Gravity
 import android.view.MotionEvent
@@ -65,6 +68,14 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
     private lateinit var params: WindowManager.LayoutParams
     private var gestureActive = false
 
+    // Power saving: the ticker stops completely while the screen is off.
+    private val screenOn = MutableStateFlow(true)
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            screenOn.value = intent.action != Intent.ACTION_SCREEN_OFF
+        }
+    }
+
     private val density get() = resources.displayMetrics.density
     private fun Int.dpToPx() = (this * density).roundToInt()
     private fun Int.pxToDp() = (this / density).roundToInt()
@@ -74,6 +85,16 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
         savedStateController.performRestore(null)
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        screenOn.value = getSystemService(PowerManager::class.java).isInteractive
+        ContextCompat.registerReceiver(
+            this,
+            screenReceiver,
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_SCREEN_OFF)
+            },
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -88,6 +109,7 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
     }
 
     override fun onDestroy() {
+        runCatching { unregisterReceiver(screenReceiver) }
         view?.let { runCatching { windowManager.removeView(it) } }
         view = null
         runningState.value = false
@@ -142,7 +164,8 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
             setViewTreeSavedStateRegistryOwner(this@FloatingWindowService)
             setContent {
                 val settings by repo.settings.collectAsStateWithLifecycle()
-                val snapshot = rememberSalarySnapshot(settings.salary)
+                val visible by screenOn.collectAsStateWithLifecycle()
+                val snapshot = rememberSalarySnapshot(settings.salary, settings.refreshRate, visible)
                 Box(Modifier.fillMaxSize()) {
                     FloatContent(
                         settings, snapshot,

@@ -4,6 +4,7 @@
 package io.github.dudu26.moneytick.overlay
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,7 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,7 +33,10 @@ import io.github.dudu26.moneytick.ui.countdownLabel
 import io.github.dudu26.moneytick.ui.formatDuration
 import io.github.dudu26.moneytick.ui.statusText
 
-/** What the floating window draws. Also used as a live preview on the settings screen. */
+/**
+ * What the floating window draws. Also used as a live preview on the settings screen.
+ * Deliberately has no animations: an overlay is on screen all day, so every frame costs battery.
+ */
 @Composable
 fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modifier = Modifier) {
     val f = settings.floatConfig
@@ -44,6 +48,7 @@ fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modi
             .alpha(f.opacity)
             .clip(RoundedCornerShape(f.cornerDp.dp))
             .background(Color(f.backgroundArgb.toInt()))
+            .border(0.5.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(f.cornerDp.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -53,7 +58,7 @@ fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modi
                 FloatItem.AMOUNT -> Text(
                     formatAmount(snapshot.earnedToday, settings.currencySymbol),
                     color = fg, fontSize = (22 * scale).sp, fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace, maxLines = 1, overflow = TextOverflow.Clip,
+                    style = TextStyle(fontFeatureSettings = "tnum"), maxLines = 1, overflow = TextOverflow.Clip,
                 )
                 FloatItem.STATUS -> SmallText(statusText(snapshot), fg, scale)
                 FloatItem.PROGRESS -> LinearProgressIndicator(

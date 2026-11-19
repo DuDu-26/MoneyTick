@@ -69,3 +69,29 @@ class SalaryCalculatorTest {
         assertEquals(listOf(IssueCode.LUNCH_OUTSIDE), validateSalaryConfig(c).map { it.code })
     }
 }
+
+class TickDelayTest {
+    private val working = SalarySnapshot(status = SalaryStatus.WORKING, secondRate = 1000.0 / 32400)
+
+    @Test fun realtimeFollowsCents() {
+        // 1000/day over 9h ≈ 0.0309/s → one cent every ~324 ms
+        assertEquals(324L, nextTickDelayMs(working))
+    }
+
+    @Test fun slowerRatesUseFixedInterval() {
+        assertEquals(5_000L, nextTickDelayMs(working, RefreshRate.FIVE_SECONDS))
+        assertEquals(60_000L, nextTickDelayMs(working, RefreshRate.MINUTE))
+    }
+
+    @Test fun idleWhenNothingChanges() {
+        assertEquals(IDLE_TICK_MS, nextTickDelayMs(SalarySnapshot(status = SalaryStatus.AFTER_WORK)))
+        assertEquals(IDLE_TICK_MS, nextTickDelayMs(SalarySnapshot(status = SalaryStatus.REST_DAY)))
+    }
+
+    @Test fun countdownTicksEverySecondButNotPastTransition() {
+        val before = SalarySnapshot(status = SalaryStatus.BEFORE_WORK, nextTransitionMs = 3_600_000)
+        assertEquals(1_000L, nextTickDelayMs(before))
+        assertEquals(60_000L, nextTickDelayMs(before, RefreshRate.MINUTE))
+        assertEquals(500L, nextTickDelayMs(before.copy(nextTransitionMs = 500)))
+    }
+}

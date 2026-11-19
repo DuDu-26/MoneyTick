@@ -83,12 +83,22 @@ fun calculateSalarySnapshot(now: LocalDateTime, config: SalaryConfig): SalarySna
 }
 
 /**
- * Delay until the next UI refresh: fast enough to show every cent while working,
- * 1 s otherwise. Mirrors PayDance useSalaryTicker.
+ * Delay until the next UI refresh.
+ *
+ * [RefreshRate.REALTIME] mirrors PayDance useSalaryTicker: refresh every time the amount grows
+ * by one cent (120 ms–1 s). Slower rates trade smoothness for fewer wake-ups. When nothing is
+ * changing (after work, rest day, invalid config) the ticker idles at one wake-up per minute.
  */
-fun nextTickDelayMs(snapshot: SalarySnapshot): Long {
-    if (snapshot.status != SalaryStatus.WORKING || snapshot.secondRate <= 0) {
-        return if (snapshot.nextTransitionMs > 0) snapshot.nextTransitionMs.coerceIn(120, 1000) else 1000
+fun nextTickDelayMs(snapshot: SalarySnapshot, rate: RefreshRate = RefreshRate.REALTIME): Long {
+    val working = snapshot.status == SalaryStatus.WORKING && snapshot.secondRate > 0
+    if (!working) {
+        // A countdown (before work, lunch break) shows seconds; otherwise nothing moves.
+        if (snapshot.nextTransitionMs <= 0) return IDLE_TICK_MS
+        val countdownTick = maxOf(1000L, rate.intervalMs)
+        return snapshot.nextTransitionMs.coerceIn(120, countdownTick)
     }
+    if (rate != RefreshRate.REALTIME) return rate.intervalMs
     return ((0.01 / snapshot.secondRate) * 1000).toLong().coerceIn(120, 1000)
 }
+
+const val IDLE_TICK_MS = 60_000L

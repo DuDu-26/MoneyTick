@@ -49,6 +49,12 @@ data class FloatConfig(
 @Serializable
 enum class AmountAnimation { ROLLING, PLAIN }
 
+/** How often the amount refreshes while working. Slower = fewer CPU wake-ups. */
+@Serializable
+enum class RefreshRate(val intervalMs: Long) {
+    REALTIME(0), SECOND(1_000), FIVE_SECONDS(5_000), MINUTE(60_000)
+}
+
 @Serializable
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
@@ -61,6 +67,7 @@ data class AppSettings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val onboardingDone: Boolean = false,
     val floatConfig: FloatConfig = FloatConfig(),
+    val refreshRate: RefreshRate = RefreshRate.REALTIME,
 ) {
     companion object {
         const val SCHEMA_VERSION = 1
