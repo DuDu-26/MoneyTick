@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/icon-512.png" width="120" alt="摸鱼币图标"></p>
+
 # 摸鱼币 MoneyTick
 
 把「今天正在挣到的钱」放到安卓手机上：实时显示今日入账，还能开一个**大小可调、内容可自定义的悬浮窗**，在任何 App 上面随时瞄一眼。
