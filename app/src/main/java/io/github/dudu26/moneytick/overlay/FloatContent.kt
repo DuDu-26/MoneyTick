@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,7 +49,7 @@ fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modi
             .alpha(f.opacity)
             .clip(RoundedCornerShape(f.cornerDp.dp))
             .background(Color(f.backgroundArgb.toInt()))
-            .border(0.5.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(f.cornerDp.dp))
+            .border(1.dp, fg.copy(alpha = 0.08f), RoundedCornerShape(f.cornerDp.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -57,13 +58,14 @@ fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modi
             when (item) {
                 FloatItem.AMOUNT -> Text(
                     formatAmount(snapshot.earnedToday, settings.currencySymbol),
-                    color = fg, fontSize = (22 * scale).sp, fontWeight = FontWeight.Bold,
+                    color = fg, fontSize = (22 * scale).sp, fontWeight = FontWeight.SemiBold,
                     style = TextStyle(fontFeatureSettings = "tnum"), maxLines = 1, overflow = TextOverflow.Clip,
                 )
                 FloatItem.STATUS -> SmallText(statusText(snapshot), fg, scale)
                 FloatItem.PROGRESS -> LinearProgressIndicator(
                     progress = { snapshot.progress.toFloat() },
-                    color = fg, trackColor = fg.copy(alpha = 0.25f),
+                    color = fg, trackColor = fg.copy(alpha = 0.15f),
+                    strokeCap = StrokeCap.Round, gapSize = 0.dp, drawStopIndicator = {},
                     modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp).height((4 * scale).dp),
                 )
                 FloatItem.REMAINING -> countdownLabel(snapshot)?.let { label ->

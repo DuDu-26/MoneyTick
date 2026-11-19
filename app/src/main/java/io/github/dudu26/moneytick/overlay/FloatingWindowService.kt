@@ -44,6 +44,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import io.github.dudu26.moneytick.R
+import io.github.dudu26.moneytick.core.DoubleTapAction
 import io.github.dudu26.moneytick.core.FloatConfig
 import io.github.dudu26.moneytick.data.settingsRepository
 import io.github.dudu26.moneytick.ui.MainActivity
@@ -57,7 +58,7 @@ import kotlin.math.roundToInt
 
 /**
  * Foreground service that owns the floating window (TYPE_APPLICATION_OVERLAY).
- * Drag the body to move, drag the corner handle to resize, double-tap to open the app.
+ * Drag the body to move, drag the corner handle to resize, double-tap to hide (or open the app).
  */
 class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
     private val savedStateController = SavedStateRegistryController.create(this)
@@ -176,7 +177,7 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
                             Modifier
                                 .align(Alignment.BottomEnd)
                                 .size(18.dp)
-                                .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(topStart = 10.dp))
+                                .background(Color(settings.floatConfig.textArgb.toInt()).copy(alpha = 0.18f), RoundedCornerShape(topStart = 10.dp))
                                 .pointerInteropFilter { onResizeTouch(it) },
                         )
                     }
@@ -238,7 +239,10 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
                     val now = e.eventTime
                     if (now - lastTapAt < DOUBLE_TAP_MS) {
                         lastTapAt = 0
-                        openApp()
+                        when (settingsRepository.settings.value.floatConfig.doubleTapAction) {
+                            DoubleTapAction.HIDE -> stopSelf()
+                            DoubleTapAction.OPEN_APP -> openApp()
+                        }
                     } else {
                         lastTapAt = now
                     }

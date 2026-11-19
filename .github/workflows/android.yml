@@ -21,7 +21,21 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - name: Unit tests
         run: ./gradlew :core:test --console=plain
+      - name: Prepare signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "MT_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::KEYSTORE_BASE64 secret not set; release APK is signed with a temporary debug key."
+          fi
       - name: Build APK
+        env:
+          MT_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          MT_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          MT_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew :app:assembleDebug :app:assembleRelease --console=plain
       - uses: actions/upload-artifact@v5
         with:
@@ -32,7 +46,7 @@ jobs:
       # Releases are automatic: when versionName in app/build.gradle.kts is new, publish v<versionName>.
       - name: Check for new version
         id: version
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.MT_KEYSTORE_FILE != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

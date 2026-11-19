@@ -49,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.dudu26.moneytick.ui.theme.extraColors
+import io.github.dudu26.moneytick.ui.theme.softCard
 
 /** Page with a large title, as in current iOS / 大厂 app settings pages. */
 @Composable
@@ -104,24 +106,18 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) = Text(
 /** Rounded white card that groups rows, with hairline dividers between children. */
 @Composable
 fun GroupCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(extraColors.card),
-        content = content,
-    )
+    Column(modifier.fillMaxWidth().softCard(), content = content)
 }
 
 @Composable
 fun RowDivider() = HorizontalDivider(
-    color = extraColors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 56.dp),
+    color = extraColors.divider, thickness = 1.dp, modifier = Modifier.padding(horizontal = 16.dp),
 )
 
 @Composable
-fun IconBadge(icon: ImageVector, tint: Color, size: Dp = 32.dp) {
+fun IconBadge(icon: ImageVector, tint: Color, size: Dp = 34.dp) {
     Box(
-        Modifier.size(size).clip(RoundedCornerShape(10.dp)).background(tint.copy(alpha = 0.14f)),
+        Modifier.size(size).clip(CircleShape).background(extraColors.subtle),
         contentAlignment = Alignment.Center,
     ) { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(size * 0.58f)) }
 }
@@ -132,7 +128,7 @@ fun SettingRow(
     title: String,
     subtitle: String? = null,
     icon: ImageVector? = null,
-    iconTint: Color = MaterialTheme.colorScheme.primary,
+    iconTint: Color = MaterialTheme.colorScheme.onSurface,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
 ) {
@@ -140,7 +136,7 @@ fun SettingRow(
         Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -183,8 +179,7 @@ fun <T> SegmentedPicker(options: List<Pair<T, String>>, selected: T, onSelect: (
                 .offset(x = offset)
                 .width(segment)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(10.dp))
-                .background(extraColors.card),
+                .softCard(RoundedCornerShape(10.dp), elevation = 4.dp),
         )
         Row(Modifier.fillMaxSize()) {
             options.forEach { (value, label) ->
@@ -243,3 +238,30 @@ fun StatusPill(text: String, dotColor: Color, background: Color, contentColor: C
         Text(text, style = MaterialTheme.typography.labelMedium, color = contentColor)
     }
 }
+
+/** Black circular primary action, as in the reference "清透" designs. */
+@Composable
+fun InkCircleButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    size: Dp = 64.dp,
+    active: Boolean = true,
+) {
+    val c = extraColors
+    val bg = if (active) c.ink else c.card
+    val fg = if (active) c.onInk else c.ink
+    Box(
+        Modifier
+            .size(size)
+            .inkShadow(size)
+            .clip(CircleShape)
+            .background(bg)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, contentDescription, tint = fg, modifier = Modifier.size(size * 0.42f)) }
+}
+
+@Composable
+private fun Modifier.inkShadow(size: Dp): Modifier =
+    this.shadow(size / 4, CircleShape, clip = false, ambientColor = Color.Black.copy(alpha = 0.18f), spotColor = Color.Black.copy(alpha = 0.28f))

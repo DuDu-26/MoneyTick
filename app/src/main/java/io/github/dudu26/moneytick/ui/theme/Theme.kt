@@ -3,6 +3,9 @@
 
 package io.github.dudu26.moneytick.ui.theme
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
@@ -11,88 +14,103 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-val Emerald = Color(0xFF0FB57A)
-val Gold = Color(0xFFF5A524)
-
+/**
+ * "清透" style: flat light background, white cards with a soft wide shadow and a hairline
+ * highlight border, big black numbers, one accent colour (orange). No gradients.
+ */
 @Immutable
 data class ExtraColors(
-    val heroBrush: Brush,
-    val onHero: Color,
     val card: Color,
+    val cardBorder: Color,
+    val shadow: Color,
     val divider: Color,
-    val gold: Color,
+    val accent: Color,
+    val accentSoft: Color,
     val subtle: Color,
+    val ink: Color,
+    val onInk: Color,
 )
 
 private val LightExtra = ExtraColors(
-    heroBrush = Brush.linearGradient(listOf(Color(0xFF12C48B), Color(0xFF0EA5A0), Color(0xFF1C82D6))),
-    onHero = Color.White,
     card = Color.White,
-    divider = Color(0xFFEDEEF1),
-    gold = Gold,
-    subtle = Color(0xFFF1F3F6),
+    cardBorder = Color(0xFFF0F1F3),
+    shadow = Color(0xFF8A94A6),
+    divider = Color(0xFFF0F1F3),
+    accent = Color(0xFFF59A3C),
+    accentSoft = Color(0xFFFFF1E2),
+    subtle = Color(0xFFF3F4F6),
+    ink = Color(0xFF111215),
+    onInk = Color.White,
 )
 
 private val DarkExtra = ExtraColors(
-    heroBrush = Brush.linearGradient(listOf(Color(0xFF0B8F64), Color(0xFF0A7A7E), Color(0xFF155E9C))),
-    onHero = Color.White,
-    card = Color(0xFF17191D),
-    divider = Color(0xFF26292E),
-    gold = Color(0xFFFFC14D),
-    subtle = Color(0xFF202328),
+    card = Color(0xFF1A1B1F),
+    cardBorder = Color(0xFF26282D),
+    shadow = Color.Black,
+    divider = Color(0xFF26282D),
+    accent = Color(0xFFFFAD5C),
+    accentSoft = Color(0xFF3A2A1A),
+    subtle = Color(0xFF24262B),
+    ink = Color(0xFFF5F5F7),
+    onInk = Color(0xFF111215),
 )
 
 val LocalExtraColors = staticCompositionLocalOf { LightExtra }
 
 private val LightScheme = lightColorScheme(
-    primary = Emerald,
+    primary = Color(0xFF111215),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFD9F7EA),
-    onPrimaryContainer = Color(0xFF00513A),
-    secondary = Color(0xFF1C82D6),
-    background = Color(0xFFF4F5F7),
-    onBackground = Color(0xFF111318),
-    surface = Color(0xFFF4F5F7),
-    onSurface = Color(0xFF111318),
-    surfaceVariant = Color(0xFFF1F3F6),
-    onSurfaceVariant = Color(0xFF6B7280),
-    outline = Color(0xFFE5E7EB),
+    primaryContainer = Color(0xFFF3F4F6),
+    onPrimaryContainer = Color(0xFF111215),
+    secondary = Color(0xFFF59A3C),
+    background = Color(0xFFF5F6F8),
+    onBackground = Color(0xFF111215),
+    surface = Color(0xFFF5F6F8),
+    onSurface = Color(0xFF111215),
+    surfaceVariant = Color(0xFFF3F4F6),
+    onSurfaceVariant = Color(0xFF8A8F98),
+    outline = Color(0xFFE6E8EB),
     error = Color(0xFFE5484D),
 )
 
 private val DarkScheme = darkColorScheme(
-    primary = Color(0xFF34D399),
-    onPrimary = Color(0xFF00382A),
-    primaryContainer = Color(0xFF0B3D2E),
-    onPrimaryContainer = Color(0xFFA7F3D0),
-    secondary = Color(0xFF60A5FA),
-    background = Color(0xFF0B0C0F),
-    onBackground = Color(0xFFF3F4F6),
-    surface = Color(0xFF0B0C0F),
-    onSurface = Color(0xFFF3F4F6),
-    surfaceVariant = Color(0xFF202328),
-    onSurfaceVariant = Color(0xFF9CA3AF),
-    outline = Color(0xFF2A2D33),
+    primary = Color(0xFFF5F5F7),
+    onPrimary = Color(0xFF111215),
+    primaryContainer = Color(0xFF24262B),
+    onPrimaryContainer = Color(0xFFF5F5F7),
+    secondary = Color(0xFFFFAD5C),
+    background = Color(0xFF0E0F11),
+    onBackground = Color(0xFFF5F5F7),
+    surface = Color(0xFF0E0F11),
+    onSurface = Color(0xFFF5F5F7),
+    surfaceVariant = Color(0xFF24262B),
+    onSurfaceVariant = Color(0xFF8E939C),
+    outline = Color(0xFF2A2C31),
     error = Color(0xFFFF6369),
 )
 
 private val AppTypography = Typography().let { t ->
     t.copy(
-        headlineLarge = t.headlineLarge.copy(fontWeight = FontWeight.Bold, fontSize = 30.sp),
-        headlineSmall = t.headlineSmall.copy(fontWeight = FontWeight.Bold),
+        headlineLarge = t.headlineLarge.copy(fontWeight = FontWeight.Bold, fontSize = 30.sp, letterSpacing = (-0.3).sp),
+        headlineSmall = t.headlineSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp),
         titleLarge = t.titleLarge.copy(fontWeight = FontWeight.SemiBold),
         titleMedium = t.titleMedium.copy(fontWeight = FontWeight.SemiBold),
     )
 }
 
 /** Tabular figures keep digits the same width so a ticking amount does not jitter. */
-val NumberStyle = TextStyle(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum")
+val NumberStyle = TextStyle(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum", letterSpacing = (-0.5).sp)
 
 @Composable
 fun MoneyTickTheme(dark: Boolean, content: @Composable () -> Unit) {
@@ -107,3 +125,14 @@ fun MoneyTickTheme(dark: Boolean, content: @Composable () -> Unit) {
 
 val extraColors: ExtraColors
     @Composable get() = LocalExtraColors.current
+
+/** White card with a soft, wide, low-contrast shadow and a hairline border. */
+@Composable
+fun Modifier.softCard(shape: Shape = RoundedCornerShape(24.dp), elevation: Dp = 18.dp): Modifier {
+    val c = extraColors
+    return this
+        .shadow(elevation, shape, clip = false, ambientColor = c.shadow.copy(alpha = 0.10f), spotColor = c.shadow.copy(alpha = 0.16f))
+        .clip(shape)
+        .background(c.card)
+        .border(1.dp, c.cardBorder, shape)
+}

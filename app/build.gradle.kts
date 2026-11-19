@@ -14,16 +14,29 @@ android {
         applicationId = "io.github.dudu26.moneytick"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.2.2"
+        versionCode = 5
+        versionName = "0.3.0"
+    }
+
+    // Release signing comes from environment variables (set by CI from repository secrets).
+    // Without them the build falls back to the debug key, so local builds still work.
+    val keystorePath = System.getenv("MT_KEYSTORE_FILE")
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("MT_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("MT_KEY_ALIAS")
+                keyPassword = System.getenv("MT_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Signed with the debug key until a release keystore is set up (see docs/ROADMAP.md).
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {

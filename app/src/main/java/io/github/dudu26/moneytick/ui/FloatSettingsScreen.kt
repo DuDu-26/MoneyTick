@@ -6,14 +6,18 @@ package io.github.dudu26.moneytick.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,21 +25,22 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.dudu26.moneytick.core.AppSettings
+import io.github.dudu26.moneytick.core.DoubleTapAction
 import io.github.dudu26.moneytick.core.FloatConfig
 import io.github.dudu26.moneytick.core.FloatItem
 import io.github.dudu26.moneytick.overlay.FloatContent
@@ -43,88 +48,158 @@ import io.github.dudu26.moneytick.ui.components.GroupCard
 import io.github.dudu26.moneytick.ui.components.LargeTitlePage
 import io.github.dudu26.moneytick.ui.components.RowDivider
 import io.github.dudu26.moneytick.ui.components.SectionHeader
+import io.github.dudu26.moneytick.ui.components.SegmentedPicker
 import io.github.dudu26.moneytick.ui.components.SettingRow
 import io.github.dudu26.moneytick.ui.theme.extraColors
+import io.github.dudu26.moneytick.ui.theme.softCard
 import kotlin.math.roundToInt
 
-private val itemLabels = mapOf(
-    FloatItem.AMOUNT to "今日入账金额",
+private val itemLabels = linkedMapOf(
+    FloatItem.AMOUNT to "今日入账",
     FloatItem.STATUS to "工作状态",
-    FloatItem.PROGRESS to "今日进度条",
-    FloatItem.REMAINING to "倒计时（距离下班等）",
+    FloatItem.PROGRESS to "进度条",
+    FloatItem.REMAINING to "倒计时",
     FloatItem.SECOND_RATE to "秒薪",
     FloatItem.DAILY_TARGET to "今日预计",
 )
 
-private val bgPresets = listOf(0xFF1F2328, 0xFF000000, 0xFFFFFFFF, 0xFF0FB57A, 0xFF1C82D6, 0xFF7C3AED, 0xFFE11D48)
-private val textPresets = listOf(0xFFF5A524, 0xFFFFFFFF, 0xFF111318, 0xFF34D399, 0xFF60A5FA, 0xFFF472B6, 0xFFFDE047)
+private data class StylePreset(val name: String, val bg: Long, val fg: Long, val opacity: Float)
+
+private val presets = listOf(
+    StylePreset("清透白", 0xFFFFFFFF, 0xFF111215, 0.92f),
+    StylePreset("曜石黑", 0xFF111215, 0xFFFFFFFF, 0.9f),
+    StylePreset("暖橙", 0xFFFFF1E2, 0xFFE07A1F, 0.95f),
+    StylePreset("极简", 0xFF000000, 0xFFFFFFFF, 0.35f),
+)
+
+private val bgSwatches = listOf(0xFFFFFFFF, 0xFFF3F4F6, 0xFF111215, 0xFFFFF1E2, 0xFFE8F3FF, 0xFFEAF7EF)
+private val fgSwatches = listOf(0xFF111215, 0xFFFFFFFF, 0xFFF59A3C, 0xFF2F80ED, 0xFF16A34A, 0xFFE5484D)
 
 @Composable
 fun FloatSettingsScreen(settings: AppSettings, onChange: ((AppSettings) -> AppSettings) -> Unit, onBack: () -> Unit) {
     val f = settings.floatConfig
     fun edit(transform: (FloatConfig) -> FloatConfig) =
         onChange { it.copy(floatConfig = transform(it.floatConfig).normalized()) }
+    val c = extraColors
 
     LargeTitlePage("自定义悬浮窗", onBack) {
         Text(
-            "改动即时生效。悬浮窗上拖动可移动，拖右下角可缩放，双击回到 App。",
+            "改动即时生效。拖动移动，拖右下角缩放。",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        // Live preview on a mock wallpaper
+        // Preview stage
         val snapshot = rememberSalarySnapshot(settings.salary, settings.refreshRate)
         Box(
             Modifier
                 .padding(top = 16.dp)
                 .fillMaxWidth()
-                .height(maxOf(f.heightDp + 48, 160).coerceAtMost(360).dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Brush.linearGradient(listOf(Color(0xFF8EC5FC), Color(0xFFE0C3FC), Color(0xFFFBC2EB)))),
+                .height((f.heightDp + 72).coerceIn(180, 380).dp)
+                .softCard(RoundedCornerShape(28.dp))
+                .padding(10.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(c.subtle),
             contentAlignment = Alignment.Center,
         ) {
             Box(Modifier.size(f.widthDp.dp, f.heightDp.dp)) { FloatContent(settings, snapshot) }
+            Text(
+                "实时预览",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+            )
+        }
+
+        SectionHeader("风格")
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            presets.forEach { p ->
+                val selected = f.backgroundArgb == p.bg && f.textArgb == p.fg && kotlin.math.abs(f.opacity - p.opacity) < 0.01f
+                Column(
+                    Modifier
+                        .width(108.dp)
+                        .softCard(RoundedCornerShape(20.dp), elevation = 10.dp)
+                        .then(if (selected) Modifier.border(2.dp, c.ink, RoundedCornerShape(20.dp)) else Modifier)
+                        .clickable { edit { it.copy(backgroundArgb = p.bg, textArgb = p.fg, opacity = p.opacity) } }
+                        .padding(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(12.dp)).background(c.subtle),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            Modifier.clip(RoundedCornerShape(10.dp))
+                                .background(Color(p.bg.toInt()).copy(alpha = p.opacity))
+                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                        ) {
+                            Text("¥128.50", color = Color(p.fg.toInt()), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    Text(p.name, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+                }
+            }
         }
 
         SectionHeader("显示内容")
-        GroupCard {
-            val ordered = f.items + FloatItem.entries.filter { it !in f.items }
-            ordered.forEachIndexed { row, item ->
-                if (row > 0) RowDivider()
-                val index = f.items.indexOf(item)
-                Row(
-                    Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(
-                        checked = index >= 0,
-                        onCheckedChange = { on -> edit { c -> c.copy(items = if (on) c.items + item else c.items - item) } },
-                    )
-                    Text(
-                        itemLabels.getValue(item),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (index >= 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (index >= 0) {
-                        IconButton(enabled = index > 0, onClick = { edit { c -> c.copy(items = c.items.swap(index, index - 1)) } }) {
-                            Icon(Icons.Rounded.KeyboardArrowUp, "上移")
+        val entries = itemLabels.entries.toList()
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            entries.chunked(3).forEach { rowItems ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    rowItems.forEach { (item, label) ->
+                        val on = item in f.items
+                        Row(
+                            Modifier
+                                .weight(1f)
+                                .height(46.dp)
+                                .then(
+                                    if (on) Modifier.clip(RoundedCornerShape(16.dp)).background(c.ink)
+                                    else Modifier.softCard(RoundedCornerShape(16.dp), elevation = 6.dp),
+                                )
+                                .clickable { edit { cf -> cf.copy(items = if (on) cf.items - item else cf.items + item) } }
+                                .padding(horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            if (on) Icon(Icons.Rounded.Check, null, tint = c.onInk, modifier = Modifier.size(16.dp).padding(end = 2.dp))
+                            Text(label, style = MaterialTheme.typography.labelLarge, color = if (on) c.onInk else MaterialTheme.colorScheme.onSurface, maxLines = 1)
                         }
-                        IconButton(enabled = index < f.items.lastIndex, onClick = { edit { c -> c.copy(items = c.items.swap(index, index + 1)) } }) {
-                            Icon(Icons.Rounded.KeyboardArrowDown, "下移")
+                    }
+                    repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+
+        if (f.items.size > 1) {
+            SectionHeader("显示顺序")
+            GroupCard {
+                f.items.forEachIndexed { index, item ->
+                    if (index > 0) RowDivider()
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("${index + 1}", style = MaterialTheme.typography.labelLarge, color = c.accent, modifier = Modifier.width(24.dp))
+                        Text(itemLabels.getValue(item), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        RoundIcon(Icons.Rounded.KeyboardArrowUp, "上移", enabled = index > 0) {
+                            edit { cf -> cf.copy(items = cf.items.swap(index, index - 1)) }
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        RoundIcon(Icons.Rounded.KeyboardArrowDown, "下移", enabled = index < f.items.lastIndex) {
+                            edit { cf -> cf.copy(items = cf.items.swap(index, index + 1)) }
                         }
                     }
                 }
             }
         }
 
-        SectionHeader("大小与外观")
+        SectionHeader("尺寸")
         GroupCard {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                LabeledSlider("宽度", "${f.widthDp} dp", f.widthDp.toFloat(), FloatConfig.MIN_WIDTH_DP.toFloat()..FloatConfig.MAX_WIDTH_DP.toFloat()) { v -> edit { it.copy(widthDp = v.roundToInt()) } }
-                LabeledSlider("高度", "${f.heightDp} dp", f.heightDp.toFloat(), FloatConfig.MIN_HEIGHT_DP.toFloat()..FloatConfig.MAX_HEIGHT_DP.toFloat()) { v -> edit { it.copy(heightDp = v.roundToInt()) } }
-                LabeledSlider("字号", "${"%.1f".format(f.fontScale)}×", f.fontScale, 0.5f..3f) { v -> edit { it.copy(fontScale = v) } }
-                LabeledSlider("不透明度", "${(f.opacity * 100).roundToInt()}%", f.opacity, 0.1f..1f) { v -> edit { it.copy(opacity = v) } }
-                LabeledSlider("圆角", "${f.cornerDp} dp", f.cornerDp.toFloat(), 0f..40f) { v -> edit { it.copy(cornerDp = v.roundToInt()) } }
+                SoftSlider("宽度", "${f.widthDp}", f.widthDp.toFloat(), FloatConfig.MIN_WIDTH_DP.toFloat()..FloatConfig.MAX_WIDTH_DP.toFloat()) { v -> edit { it.copy(widthDp = v.roundToInt()) } }
+                SoftSlider("高度", "${f.heightDp}", f.heightDp.toFloat(), FloatConfig.MIN_HEIGHT_DP.toFloat()..FloatConfig.MAX_HEIGHT_DP.toFloat()) { v -> edit { it.copy(heightDp = v.roundToInt()) } }
+                SoftSlider("字号", "${"%.1f".format(f.fontScale)}×", f.fontScale, 0.5f..3f) { v -> edit { it.copy(fontScale = v) } }
+                SoftSlider("不透明度", "${(f.opacity * 100).roundToInt()}%", f.opacity, 0.1f..1f) { v -> edit { it.copy(opacity = v) } }
+                SoftSlider("圆角", "${f.cornerDp}", f.cornerDp.toFloat(), 0f..40f) { v -> edit { it.copy(cornerDp = v.roundToInt()) } }
             }
         }
 
@@ -132,14 +207,27 @@ fun FloatSettingsScreen(settings: AppSettings, onChange: ((AppSettings) -> AppSe
         GroupCard {
             Column(Modifier.padding(16.dp)) {
                 Text("背景", style = MaterialTheme.typography.bodyLarge)
-                ColorRow(bgPresets, f.backgroundArgb) { c -> edit { it.copy(backgroundArgb = c) } }
-                Text("文字", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
-                ColorRow(textPresets, f.textArgb) { c -> edit { it.copy(textArgb = c) } }
+                Swatches(bgSwatches, f.backgroundArgb) { col -> edit { it.copy(backgroundArgb = col) } }
+                Text("文字", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 10.dp))
+                Swatches(fgSwatches, f.textArgb) { col -> edit { it.copy(textArgb = col) } }
             }
         }
 
-        SectionHeader("其他")
+        SectionHeader("交互")
         GroupCard {
+            Column(Modifier.padding(16.dp)) {
+                Text("双击悬浮窗", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "隐藏后回到 App 首页，点黑色按钮即可重新显示",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+                )
+                SegmentedPicker(
+                    listOf(DoubleTapAction.HIDE to "隐藏悬浮窗", DoubleTapAction.OPEN_APP to "打开 App"),
+                    f.doubleTapAction, { a -> edit { it.copy(doubleTapAction = a) } },
+                )
+            }
+            RowDivider()
             SettingRow(
                 "锁定位置和大小", "防止误触拖动", Icons.Rounded.Lock,
                 trailing = { Switch(checked = f.locked, onCheckedChange = { on -> edit { it.copy(locked = on) } }) },
@@ -151,34 +239,52 @@ fun FloatSettingsScreen(settings: AppSettings, onChange: ((AppSettings) -> AppSe
 private fun <T> List<T>.swap(i: Int, j: Int): List<T> = toMutableList().also { val t = it[i]; it[i] = it[j]; it[j] = t }
 
 @Composable
-private fun LabeledSlider(label: String, value: String, current: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+private fun RoundIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, desc: String, enabled: Boolean, onClick: () -> Unit) {
+    val c = extraColors
+    Box(
+        Modifier.size(32.dp).clip(CircleShape).background(c.subtle).clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, desc, tint = if (enabled) c.ink else c.ink.copy(alpha = 0.25f), modifier = Modifier.size(20.dp))
     }
-    Slider(value = current, onValueChange = onChange, valueRange = range, modifier = Modifier.fillMaxWidth().height(36.dp))
 }
 
 @Composable
-private fun ColorRow(presets: List<Long>, selected: Long, onPick: (Long) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(vertical = 10.dp)) {
-        presets.forEach { argb ->
+private fun SoftSlider(label: String, value: String, current: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+    val c = extraColors
+    Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Text(
+            value,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.clip(CircleShape).background(c.subtle).padding(horizontal = 10.dp, vertical = 4.dp),
+        )
+    }
+    Slider(
+        value = current, onValueChange = onChange, valueRange = range,
+        colors = SliderDefaults.colors(
+            thumbColor = c.ink, activeTrackColor = c.ink, inactiveTrackColor = c.subtle,
+        ),
+        modifier = Modifier.fillMaxWidth().height(36.dp),
+    )
+}
+
+@Composable
+private fun Swatches(colors: List<Long>, selected: Long, onPick: (Long) -> Unit) {
+    val c = extraColors
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 10.dp)) {
+        colors.forEach { argb ->
             val color = Color(argb.toInt())
             val isSelected = argb == selected
             Box(
                 Modifier
-                    .size(34.dp)
+                    .size(36.dp)
+                    .then(if (isSelected) Modifier.border(2.dp, c.ink, CircleShape).padding(4.dp) else Modifier)
                     .clip(CircleShape)
                     .background(color)
-                    .border(1.dp, extraColors.divider, CircleShape)
+                    .border(1.dp, c.cardBorder, CircleShape)
                     .clickable { onPick(argb) },
-                contentAlignment = Alignment.Center,
-            ) {
-                if (isSelected) {
-                    val light = (color.red * 0.299f + color.green * 0.587f + color.blue * 0.114f) > 0.6f
-                    Icon(Icons.Rounded.Check, null, tint = if (light) Color.Black else Color.White, modifier = Modifier.size(18.dp))
-                }
-            }
+            )
         }
     }
 }

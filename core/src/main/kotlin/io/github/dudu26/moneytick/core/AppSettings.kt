@@ -13,6 +13,9 @@ import kotlinx.serialization.json.Json
 enum class FloatItem { AMOUNT, STATUS, PROGRESS, REMAINING, SECOND_RATE, DAILY_TARGET }
 
 @Serializable
+enum class DoubleTapAction { HIDE, OPEN_APP }
+
+@Serializable
 data class FloatConfig(
     /** Items shown, in order. AMOUNT alone matches PayDance's mini window. */
     val items: List<FloatItem> = listOf(FloatItem.AMOUNT),
@@ -21,13 +24,15 @@ data class FloatConfig(
     val fontScale: Float = 1f,
     /** 0.1–1.0, same range as PayDance's mini window opacity. */
     val opacity: Float = 0.9f,
-    val backgroundArgb: Long = 0xFF1F2328,
-    val textArgb: Long = 0xFFF59E0B,
+    val backgroundArgb: Long = 0xFFFFFFFF,
+    val textArgb: Long = 0xFF111215,
     val cornerDp: Int = 16,
     val x: Int = 40,
     val y: Int = 200,
     /** Locked windows ignore drag and resize so they cannot be moved by accident. */
     val locked: Boolean = false,
+    /** Double-tapping the window hides it by default; it is shown again from the app. */
+    val doubleTapAction: DoubleTapAction = DoubleTapAction.HIDE,
 ) {
     fun normalized() = copy(
         items = items.distinct().ifEmpty { listOf(FloatItem.AMOUNT) },
