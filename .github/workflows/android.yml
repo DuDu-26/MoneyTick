@@ -40,6 +40,16 @@ jobs:
       - name: Render screenshots
         continue-on-error: true
         run: ./gradlew :app:testDebugUnitTest --tests '*ScreenshotTest*' --console=plain
+      # Manual runs commit refreshed screenshots back to the branch (used by the README).
+      - name: Commit screenshots (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git add docs/screenshots
+          if ! git diff --cached --quiet; then
+            git -c user.name="dudu" -c user.email="279601110+DuDu-26@users.noreply.github.com" \
+              commit -m "更新 README 截图 [skip ci]"
+            git push
+          fi
       - uses: actions/upload-artifact@v5
         if: always()
         with:
