@@ -25,9 +25,11 @@ android {
         if (keystorePath != null) {
             create("release") {
                 storeFile = file(keystorePath)
-                storePassword = System.getenv("MT_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("MT_KEY_ALIAS")
-                keyPassword = System.getenv("MT_KEY_PASSWORD")
+                // Trim and fall back so a blank or space-padded secret does not break signing.
+                val storePw = System.getenv("MT_KEYSTORE_PASSWORD")?.trim()
+                storePassword = storePw
+                keyAlias = System.getenv("MT_KEY_ALIAS")?.trim()?.takeIf { it.isNotEmpty() } ?: "moneytick"
+                keyPassword = System.getenv("MT_KEY_PASSWORD")?.trim()?.takeIf { it.isNotEmpty() } ?: storePw
             }
         }
     }
