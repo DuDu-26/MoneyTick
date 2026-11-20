@@ -61,6 +61,7 @@ private val itemLabels = linkedMapOf(
     FloatItem.REMAINING to "倒计时",
     FloatItem.SECOND_RATE to "秒薪",
     FloatItem.DAILY_TARGET to "今日预计",
+    FloatItem.PAYDAY to "发薪倒计时",
 )
 
 private data class StylePreset(val name: String, val bg: Long, val fg: Long, val opacity: Float)

@@ -49,7 +49,20 @@ import io.github.dudu26.moneytick.core.FloatConfig
 import io.github.dudu26.moneytick.data.settingsRepository
 import io.github.dudu26.moneytick.ui.MainActivity
 import io.github.dudu26.moneytick.ui.rememberSalarySnapshot
+import io.github.dudu26.moneytick.core.AppSettings
+import io.github.dudu26.moneytick.core.calculatePayday
+import io.github.dudu26.moneytick.core.calculateSalarySnapshot
+import io.github.dudu26.moneytick.core.formatAmount
+import io.github.dudu26.moneytick.ui.countdownLabel
+import io.github.dudu26.moneytick.ui.formatCoarseDuration
+import io.github.dudu26.moneytick.ui.paydayText
+import io.github.dudu26.moneytick.ui.statusText
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import java.time.LocalDateTime
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -57,7 +70,8 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * Foreground service that owns the floating window (TYPE_APPLICATION_OVERLAY).
+ * Foreground service that owns the floating window (TYPE_APPLICATION_OVERLAY) and, when
+ * enabled, the live "today's earnings" notification. It runs while either is wanted.
  * Drag the body to move, drag the corner handle to resize, double-tap to hide (or open the app).
  */
 class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
@@ -68,6 +82,8 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
     private var view: ComposeView? = null
     private lateinit var params: WindowManager.LayoutParams
     private var gestureActive = false
+    private var layoutJob: Job? = null
+    private var handledFirstStart = false
 
     // Power saving: the ticker stops completely while the screen is off.
     private val screenOn = MutableStateFlow(true)
@@ -96,32 +112,73 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
             },
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
+        aliveState.value = true
+        // Live notification: refresh every 15 s, only while the screen is on.
+        lifecycleScope.launch {
+            combine(screenOn, settingsRepository.settings) { on, s -> on to s }
+                .collectLatest { (on, s) ->
+                    if (handledFirstStart && !s.notificationEnabled && view == null) {
+                        stopSelf()
+                        return@collectLatest
+                    }
+                    postNotification(s)
+                    while (on && s.notificationEnabled) {
+                        delay(NOTIFICATION_REFRESH_MS)
+                        postNotification(s)
+                    }
+                }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
-        if (intent?.action == ACTION_STOP || !Settings.canDrawOverlays(this)) {
+        // Every start must promote to foreground first, even if we stop right after.
+        postNotification(settingsRepository.settings.value, foreground = true)
+        when (intent?.action) {
+            ACTION_STOP -> {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            ACTION_SHOW -> if (Settings.canDrawOverlays(this) && view == null) showWindow()
+            ACTION_HIDE -> removeWindow()
+        }
+        handledFirstStart = true
+        if (view == null && !settingsRepository.settings.value.notificationEnabled) {
             stopSelf()
             return START_NOT_STICKY
         }
-        startInForeground()
-        if (view == null) showWindow()
         return START_STICKY
     }
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(screenReceiver) }
-        view?.let { runCatching { windowManager.removeView(it) } }
-        view = null
-        runningState.value = false
+        removeWindow()
+        aliveState.value = false
         super.onDestroy()
     }
 
-    private fun startInForeground() {
+    private fun removeWindow() {
+        layoutJob?.cancel()
+        layoutJob = null
+        view?.let { runCatching { windowManager.removeView(it) } }
+        view = null
+        runningState.value = false
+    }
+
+    private fun hideWindow() {
+        removeWindow()
+        if (!settingsRepository.settings.value.notificationEnabled) stopSelf()
+    }
+
+    private fun postNotification(settings: AppSettings, foreground: Boolean = false) {
         val nm = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             nm.createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, getString(R.string.notification_channel), NotificationManager.IMPORTANCE_MIN),
+            )
+            nm.createNotificationChannel(
+                NotificationChannel(LIVE_CHANNEL_ID, getString(R.string.notification_live_channel), NotificationManager.IMPORTANCE_LOW)
+                    .apply { setShowBadge(false) },
             )
         }
         val openApp = PendingIntent.getActivity(
@@ -130,19 +187,42 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
         val stop = PendingIntent.getService(
             this, 1, Intent(this, FloatingWindowService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE,
         )
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = if (settings.notificationEnabled) {
+            val now = LocalDateTime.now()
+            val snap = calculateSalarySnapshot(now, settings.salary)
+            val payday = calculatePayday(now, settings.salary, settings.paydayOfMonth)
+            val parts = buildList {
+                add(statusText(snap))
+                countdownLabel(snap)?.takeIf { it != "今日完成" }?.let { add("$it ${formatCoarseDuration(snap.nextTransitionMs)}") }
+                payday?.let { add(paydayText(it.daysUntil)) }
+            }
+            NotificationCompat.Builder(this, LIVE_CHANNEL_ID)
+                .setContentTitle("今日入账 " + formatAmount(snap.earnedToday, settings.currencySymbol))
+                .setContentText(parts.joinToString(" · "))
+                .setProgress(1000, (snap.progress * 1000).toInt(), false)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+        } else {
+            NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle(getString(R.string.notification_title))
+                .setPriority(NotificationCompat.PRIORITY_MIN)
+        }
+        val notification = builder
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(getString(R.string.notification_title))
             .setContentIntent(openApp)
             .addAction(0, getString(R.string.notification_stop), stop)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setShowWhen(false)
             .build()
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-        } else 0
-        ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, type)
-        runningState.value = true
+        if (foreground) {
+            val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            } else 0
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, type)
+        } else {
+            runCatching { nm.notify(NOTIFICATION_ID, notification) }
+        }
     }
 
     @OptIn(ExperimentalComposeUiApi::class)
@@ -186,9 +266,10 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
         }
         windowManager.addView(composeView, params)
         view = composeView
+        runningState.value = true
 
         // Apply size/position changes made on the settings screen.
-        lifecycleScope.launch {
+        layoutJob = lifecycleScope.launch {
             repo.settings.collect { s ->
                 if (gestureActive) return@collect
                 val f = s.floatConfig
@@ -240,7 +321,7 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
                     if (now - lastTapAt < DOUBLE_TAP_MS) {
                         lastTapAt = 0
                         when (settingsRepository.settings.value.floatConfig.doubleTapAction) {
-                            DoubleTapAction.HIDE -> stopSelf()
+                            DoubleTapAction.HIDE -> hideWindow()
                             DoubleTapAction.OPEN_APP -> openApp()
                         }
                     } else {
@@ -286,19 +367,37 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
 
     companion object {
         private const val CHANNEL_ID = "floating_window"
+        private const val LIVE_CHANNEL_ID = "live_amount"
         private const val NOTIFICATION_ID = 1
-        private const val ACTION_STOP = "io.github.dudu26.moneytick.STOP_FLOAT"
+        private const val NOTIFICATION_REFRESH_MS = 15_000L
+        private const val ACTION_STOP = "io.github.dudu26.moneytick.STOP"
+        private const val ACTION_SHOW = "io.github.dudu26.moneytick.SHOW_FLOAT"
+        private const val ACTION_HIDE = "io.github.dudu26.moneytick.HIDE_FLOAT"
+        private const val ACTION_SYNC = "io.github.dudu26.moneytick.SYNC"
         private const val TOUCH_SLOP_DP = 6
         private const val DOUBLE_TAP_MS = 300L
 
+        /** True while the floating window is on screen. */
         private val runningState = MutableStateFlow(false)
         val running: StateFlow<Boolean> = runningState.asStateFlow()
 
-        fun start(context: Context) =
-            ContextCompat.startForegroundService(context, Intent(context, FloatingWindowService::class.java))
+        /** True while the service process is up (floating window and/or notification). */
+        private val aliveState = MutableStateFlow(false)
 
+        private fun send(context: Context, action: String) =
+            ContextCompat.startForegroundService(context, Intent(context, FloatingWindowService::class.java).setAction(action))
+
+        /** Shows the floating window (caller has checked the overlay permission). */
+        fun start(context: Context) = send(context, ACTION_SHOW)
+
+        /** Hides the floating window; the service keeps running if the notification is on. */
         fun stop(context: Context) {
-            context.stopService(Intent(context, FloatingWindowService::class.java))
+            if (aliveState.value) send(context, ACTION_HIDE)
+        }
+
+        /** Starts or stops the service to match the notification setting. */
+        fun syncNotification(context: Context, enabled: Boolean) {
+            if (enabled || aliveState.value) send(context, ACTION_SYNC)
         }
     }
 }

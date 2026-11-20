@@ -40,7 +40,9 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.dudu26.moneytick.core.AmountAnimation
 import io.github.dudu26.moneytick.core.AppSettings
+import io.github.dudu26.moneytick.core.PaydayInfo
 import io.github.dudu26.moneytick.core.SalarySnapshot
 import io.github.dudu26.moneytick.core.SalaryStatus
 import io.github.dudu26.moneytick.core.SalaryType
@@ -68,15 +71,20 @@ import io.github.dudu26.moneytick.ui.components.RollingText
 import io.github.dudu26.moneytick.ui.theme.NumberStyle
 import io.github.dudu26.moneytick.ui.theme.extraColors
 import io.github.dudu26.moneytick.ui.theme.softCard
-import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-fun DashboardScreen(settings: AppSettings, onNavigate: (Screen) -> Unit) {
+fun DashboardScreen(
+    settings: AppSettings,
+    onNavigate: (Screen) -> Unit,
+    onToggleNotification: (Boolean) -> Unit = {},
+) {
     val context = LocalContext.current
     val snapshot = rememberSalarySnapshot(settings.salary, settings.refreshRate)
     val floatRunning by FloatingWindowService.running.collectAsStateWithLifecycle()
+    val payday = rememberPayday(settings, snapshot)
+    val today = LocalNow.current().toLocalDate()
     val symbol = settings.currencySymbol
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         FloatingWindowService.start(context)
@@ -105,7 +113,7 @@ fun DashboardScreen(settings: AppSettings, onNavigate: (Screen) -> Unit) {
             ) {
                 Spacer(Modifier.height(20.dp))
                 Text(
-                    LocalDate.now().format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA)),
+                    today.format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA)),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -124,7 +132,10 @@ fun DashboardScreen(settings: AppSettings, onNavigate: (Screen) -> Unit) {
                 }
 
                 Spacer(Modifier.height(16.dp))
-                FloatCard(floatRunning, workSummary(settings))
+                PaydayCard(payday, symbol, settings.paydayOfMonth) { onNavigate(Screen.SALARY) }
+
+                Spacer(Modifier.height(16.dp))
+                FloatCard(floatRunning, workSummary(settings), settings.notificationEnabled, onToggleNotification)
                 Spacer(Modifier.height(140.dp)) // room for the dock
             }
 
@@ -224,10 +235,71 @@ private fun MiniStat(label: String, value: String, modifier: Modifier) {
 }
 
 @Composable
-private fun FloatCard(running: Boolean, schedule: String) {
+private fun PaydayCard(payday: PaydayInfo?, symbol: String, dayOfMonth: Int, onSetup: () -> Unit) {
+    val c = extraColors
+    if (payday == null) {
+        Row(
+            Modifier.fillMaxWidth().softCard().clickable(onClick = onSetup).padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("发薪倒计时", style = MaterialTheme.typography.titleMedium)
+                Text("设置发薪日，看看还要熬几天", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
+    Row(Modifier.fillMaxWidth().softCard().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("距离发薪", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (payday.isToday) {
+                Text("就是今天！", style = NumberStyle.copy(fontSize = 30.sp), color = c.accent, modifier = Modifier.padding(top = 2.dp))
+            } else {
+                Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 2.dp)) {
+                    Text(
+                        "${payday.daysUntil}",
+                        style = NumberStyle.copy(fontSize = 36.sp, fontWeight = FontWeight.Bold),
+                        color = if (payday.daysUntil <= 3) c.accent else MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(" 天", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 6.dp))
+                }
+            }
+            Text(
+                "每月 $dayOfMonth 日 · 下次 ${payday.nextPayday.monthValue}月${payday.nextPayday.dayOfMonth}日",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Column(
+            Modifier.clip(RoundedCornerShape(16.dp)).background(c.subtle).padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.End,
+        ) {
+            Text("本期已挣", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(formatAmount(payday.periodEarned, symbol), style = NumberStyle.copy(fontSize = 18.sp), modifier = Modifier.padding(top = 2.dp))
+        }
+    }
+}
+
+@Composable
+private fun FloatCard(running: Boolean, schedule: String, notificationOn: Boolean, onToggleNotification: (Boolean) -> Unit) {
+    Column(Modifier.fillMaxWidth().softCard()) {
+        FloatStatusRow(running, schedule)
+        HorizontalDivider(color = extraColors.divider, modifier = Modifier.padding(horizontal = 18.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("通知栏显示金额", style = MaterialTheme.typography.bodyLarge)
+                Text("下拉通知就能看，息屏时不刷新", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = notificationOn, onCheckedChange = onToggleNotification)
+        }
+    }
+}
+
+@Composable
+private fun FloatStatusRow(running: Boolean, schedule: String) {
     val c = extraColors
     Row(
-        Modifier.fillMaxWidth().softCard().padding(18.dp),
+        Modifier.fillMaxWidth().padding(18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

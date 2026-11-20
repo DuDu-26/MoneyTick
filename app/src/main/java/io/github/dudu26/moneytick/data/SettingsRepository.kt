@@ -17,7 +17,12 @@ import kotlinx.coroutines.flow.update
  */
 class SettingsRepository(context: Context) {
     private val prefs = context.getSharedPreferences("moneytick", Context.MODE_PRIVATE)
-    private val state = MutableStateFlow(AppSettings.decode(prefs.getString(KEY, null)))
+    private val state = MutableStateFlow(
+        prefs.getString(KEY, null).let { raw ->
+            // Users who saved settings before the onboarding existed have already set up.
+            AppSettings.decode(raw).let { if (raw != null && !it.onboardingDone) it.copy(onboardingDone = true) else it }
+        },
+    )
     val settings: StateFlow<AppSettings> = state.asStateFlow()
 
     fun update(transform: (AppSettings) -> AppSettings) {

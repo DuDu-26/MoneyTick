@@ -32,6 +32,8 @@ import io.github.dudu26.moneytick.core.SalarySnapshot
 import io.github.dudu26.moneytick.core.formatAmount
 import io.github.dudu26.moneytick.ui.countdownLabel
 import io.github.dudu26.moneytick.ui.formatDuration
+import io.github.dudu26.moneytick.ui.paydayText
+import io.github.dudu26.moneytick.ui.rememberPayday
 import io.github.dudu26.moneytick.ui.statusText
 
 /**
@@ -43,6 +45,7 @@ fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modi
     val f = settings.floatConfig
     val fg = Color(f.textArgb.toInt())
     val scale = f.fontScale
+    val payday = if (FloatItem.PAYDAY in f.items) rememberPayday(settings, snapshot) else null
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -78,6 +81,7 @@ fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modi
                 FloatItem.SECOND_RATE -> SmallText(
                     "秒薪 " + formatAmount(snapshot.secondRate, settings.currencySymbol, 4), fg, scale,
                 )
+                FloatItem.PAYDAY -> payday?.let { SmallText(paydayText(it.daysUntil), fg, scale) }
                 FloatItem.DAILY_TARGET -> SmallText(
                     "今日预计 " + formatAmount(snapshot.dailySalary, settings.currencySymbol), fg, scale,
                 )

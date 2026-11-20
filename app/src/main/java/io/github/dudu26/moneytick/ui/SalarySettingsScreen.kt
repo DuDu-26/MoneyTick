@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DateRange
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -63,7 +64,7 @@ import io.github.dudu26.moneytick.ui.components.SegmentedPicker
 import io.github.dudu26.moneytick.ui.components.SettingRow
 import io.github.dudu26.moneytick.ui.theme.extraColors
 
-private val weekdayLabels = listOf(1 to "一", 2 to "二", 3 to "三", 4 to "四", 5 to "五", 6 to "六", 0 to "日")
+internal val weekdayLabels = listOf(1 to "一", 2 to "二", 3 to "三", 4 to "四", 5 to "五", 6 to "六", 0 to "日")
 
 private fun Double.plain() = if (this % 1.0 == 0.0) toLong().toString() else toString()
 
@@ -88,6 +89,8 @@ fun SalarySettingsScreen(settings: AppSettings, onSave: ((AppSettings) -> AppSet
     var theme by remember { mutableStateOf(settings.theme) }
     var refresh by remember { mutableStateOf(settings.refreshRate) }
     var editing by remember { mutableStateOf<TimeTarget?>(null) }
+    var payday by remember { mutableStateOf(settings.paydayOfMonth) }
+    var pickingPayday by remember { mutableStateOf(false) }
 
     val draft = s.copy(
         salaryType = type,
@@ -109,7 +112,10 @@ fun SalarySettingsScreen(settings: AppSettings, onSave: ((AppSettings) -> AppSet
                 enabled = issues.isEmpty(),
                 onClick = {
                     onSave {
-                        it.copy(salary = draft, currencySymbol = currency, amountAnimation = animation, theme = theme, refreshRate = refresh)
+                        it.copy(
+                            salary = draft, currencySymbol = currency, amountAnimation = animation,
+                            theme = theme, refreshRate = refresh, paydayOfMonth = payday,
+                        )
                     }
                 },
                 shape = RoundedCornerShape(16.dp),
@@ -138,26 +144,7 @@ fun SalarySettingsScreen(settings: AppSettings, onSave: ((AppSettings) -> AppSet
 
         SectionHeader("每周工作日")
         GroupCard {
-            Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                weekdayLabels.forEach { (day, label) ->
-                    val on = day in workdays
-                    Box(
-                        Modifier
-                            .weight(1f)
-                            .aspectRatio(1f)
-                            .clip(CircleShape)
-                            .background(if (on) MaterialTheme.colorScheme.primary else extraColors.subtle)
-                            .clickable { workdays = if (on) workdays - day else workdays + day },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            label,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
+            WeekdayPicker(workdays, Modifier.padding(12.dp)) { workdays = it }
         }
 
         SectionHeader("工作时间")
@@ -177,6 +164,15 @@ fun SalarySettingsScreen(settings: AppSettings, onSave: ((AppSettings) -> AppSet
                 RowDivider()
                 SettingRow("午休结束", onClick = { editing = TimeTarget.LUNCH_END }, trailing = { TimeValue(lunchEnd) })
             }
+        }
+
+        SectionHeader("发薪")
+        GroupCard {
+            SettingRow(
+                "发薪日", "首页显示发薪倒计时和本期已挣", Icons.Rounded.Star,
+                onClick = { pickingPayday = true },
+                trailing = { TimeValue(if (payday == 0) "未设置" else "每月 $payday 日") },
+            )
         }
 
         if (issues.isNotEmpty()) {
@@ -226,6 +222,10 @@ fun SalarySettingsScreen(settings: AppSettings, onSave: ((AppSettings) -> AppSet
         }
     }
 
+    if (pickingPayday) {
+        PaydayDialog(payday, onDismiss = { pickingPayday = false }) { payday = it; pickingPayday = false }
+    }
+
     editing?.let { target ->
         val current = when (target) {
             TimeTarget.START -> start
@@ -246,7 +246,7 @@ fun SalarySettingsScreen(settings: AppSettings, onSave: ((AppSettings) -> AppSet
 }
 
 @Composable
-private fun TimeValue(value: String) = Text(
+internal fun TimeValue(value: String) = Text(
     value,
     style = MaterialTheme.typography.titleMedium,
     color = MaterialTheme.colorScheme.primary,
@@ -264,7 +264,7 @@ private fun AmountRow(label: String, value: String, unit: String, onChange: (Str
 }
 
 @Composable
-private fun InlineField(value: String, keyboard: KeyboardType, modifier: Modifier, onChange: (String) -> Unit) {
+internal fun InlineField(value: String, keyboard: KeyboardType, modifier: Modifier, onChange: (String) -> Unit) {
     BasicTextField(
         value = value,
         onValueChange = onChange,
@@ -283,7 +283,7 @@ private fun InlineField(value: String, keyboard: KeyboardType, modifier: Modifie
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TimePickerDialog(title: String, initial: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+internal fun TimePickerDialog(title: String, initial: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     val minutes = parseTimeToMinutes(initial) ?: (9 * 60)
     val state = rememberTimePickerState(initialHour = minutes / 60, initialMinute = minutes % 60, is24Hour = true)
     AlertDialog(
@@ -294,5 +294,69 @@ private fun TimePickerDialog(title: String, initial: String, onDismiss: () -> Un
             TextButton(onClick = { onConfirm("%02d:%02d".format(state.hour, state.minute)) }) { Text("确定") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
+}
+
+@Composable
+internal fun WeekdayPicker(selected: Set<Int>, modifier: Modifier = Modifier, onChange: (Set<Int>) -> Unit) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        weekdayLabels.forEach { (day, label) ->
+            val on = day in selected
+            Box(
+                Modifier
+                    .weight(1f)
+                    .aspectRatio(1f)
+                    .clip(CircleShape)
+                    .background(if (on) MaterialTheme.colorScheme.primary else extraColors.subtle)
+                    .clickable { onChange(if (on) selected - day else selected + day) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** Day-of-month chooser for payday: 1–31 grid plus "不设置". */
+@Composable
+internal fun PaydayDialog(current: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("每月几号发工资？") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                (1..31).chunked(7).forEach { week ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        week.forEach { d ->
+                            val on = d == current
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f)
+                                    .clip(CircleShape)
+                                    .background(if (on) MaterialTheme.colorScheme.primary else extraColors.subtle)
+                                    .clickable { onPick(d) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text("$d", color = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                        repeat(7 - week.size) { Box(Modifier.weight(1f)) }
+                    }
+                }
+                Text(
+                    "遇到小月会自动算到月底那天",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = { onPick(0) }) { Text("不设置") } },
     )
 }

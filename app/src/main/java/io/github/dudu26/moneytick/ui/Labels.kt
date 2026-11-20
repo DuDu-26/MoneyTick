@@ -36,6 +36,16 @@ fun formatDuration(ms: Long): String {
     return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%02d:%02d".format(m, sec)
 }
 
+/** "3 小时 12 分" / "12 分钟": for places refreshed rarely, like the notification. */
+fun formatCoarseDuration(ms: Long): String {
+    val totalMin = (ms + 59_999) / 60_000
+    val h = totalMin / 60
+    val m = totalMin % 60
+    return if (h > 0) "$h 小时 $m 分" else "$m 分钟"
+}
+
+fun paydayText(daysUntil: Long): String = if (daysUntil == 0L) "今天发薪 🎉" else "距发薪 $daysUntil 天"
+
 fun issueText(code: IssueCode): String = when (code) {
     IssueCode.MONTHLY_POSITIVE -> "月薪需大于 0"
     IssueCode.DAILY_POSITIVE -> "日薪需大于 0"

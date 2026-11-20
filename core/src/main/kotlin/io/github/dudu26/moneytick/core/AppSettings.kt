@@ -10,7 +10,7 @@ import kotlinx.serialization.json.Json
 
 /** Items the user can choose to show in the floating window, in display order. */
 @Serializable
-enum class FloatItem { AMOUNT, STATUS, PROGRESS, REMAINING, SECOND_RATE, DAILY_TARGET }
+enum class FloatItem { AMOUNT, STATUS, PROGRESS, REMAINING, SECOND_RATE, DAILY_TARGET, PAYDAY }
 
 @Serializable
 enum class DoubleTapAction { HIDE, OPEN_APP }
@@ -73,6 +73,10 @@ data class AppSettings(
     val onboardingDone: Boolean = false,
     val floatConfig: FloatConfig = FloatConfig(),
     val refreshRate: RefreshRate = RefreshRate.REALTIME,
+    /** Day of month salary arrives (1–31); 0 = not set. */
+    val paydayOfMonth: Int = 0,
+    /** Show today's amount in the notification shade (keeps a low-priority notification). */
+    val notificationEnabled: Boolean = false,
 ) {
     companion object {
         const val SCHEMA_VERSION = 1
@@ -88,6 +92,7 @@ data class AppSettings(
                 .let { it.copy(
                     currencySymbol = sanitizeCurrencySymbol(it.currencySymbol),
                     floatConfig = it.floatConfig.normalized(),
+                    paydayOfMonth = it.paydayOfMonth.coerceIn(0, 31),
                     salary = it.salary.copy(workdays = it.salary.workdays.filter { d -> d in 0..6 }.distinct().sorted()),
                 ) }
         }

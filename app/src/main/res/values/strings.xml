@@ -3,5 +3,6 @@
     <string name="app_name">摸鱼币</string>
     <string name="notification_channel">悬浮窗</string>
     <string name="notification_title">悬浮窗运行中</string>
-    <string name="notification_stop">关闭悬浮窗</string>
+    <string name="notification_stop">全部关闭</string>
+    <string name="notification_live_channel">今日入账</string>
 </resources>
