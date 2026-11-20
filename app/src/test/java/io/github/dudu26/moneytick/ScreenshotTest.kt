@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,7 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -94,20 +97,40 @@ class ScreenshotTest {
     /** The floating window on top of a mock chat app, to show what it looks like in use. */
     @Test fun floatingWindow() = shot("floating-window") {
         val snapshot = rememberSalarySnapshot(settings.salary)
+        val shown = settings.copy(floatConfig = settings.floatConfig.copy(opacity = 1f))
         Box(Modifier.fillMaxSize().background(Color(0xFFEDEDED))) {
-            Column(Modifier.fillMaxSize().padding(top = 60.dp, start = 16.dp, end = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                listOf(0.62f, 0.45f, 0.7f, 0.38f, 0.55f, 0.66f, 0.42f).forEachIndexed { i, w ->
-                    val mine = i % 3 == 1
-                    Box(Modifier.fillMaxWidth(), contentAlignment = if (mine) androidx.compose.ui.Alignment.CenterEnd else androidx.compose.ui.Alignment.CenterStart) {
-                        Box(
-                            Modifier.fillMaxWidth(w).height(44.dp).clip(RoundedCornerShape(12.dp))
-                                .background(if (mine) Color(0xFF95EC69) else Color.White),
-                        )
+            Column(Modifier.fillMaxSize()) {
+                // Fake chat header
+                Box(Modifier.fillMaxWidth().height(96.dp).background(Color(0xFFF7F7F7)), contentAlignment = Alignment.BottomCenter) {
+                    Box(Modifier.padding(bottom = 18.dp).size(120.dp, 16.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFD6D6D6)))
+                }
+                Column(
+                    Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    listOf(0.62f, 0.45f, 0.7f, 0.38f, 0.55f, 0.66f, 0.42f, 0.58f, 0.35f, 0.64f, 0.5f, 0.4f).forEachIndexed { i, w ->
+                        val mine = i % 3 == 1
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
+                            if (!mine) Box(Modifier.padding(end = 8.dp).size(40.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFC9D6E3)))
+                            Box(
+                                Modifier.fillMaxWidth(w).height(44.dp).clip(RoundedCornerShape(10.dp))
+                                    .background(if (mine) Color(0xFF95EC69) else Color.White),
+                            )
+                            if (mine) Box(Modifier.padding(start = 8.dp).size(40.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFE3CFC9)))
+                        }
                     }
                 }
+                // Fake input bar
+                Box(Modifier.fillMaxWidth().height(64.dp).background(Color(0xFFF7F7F7)).padding(12.dp)) {
+                    Box(Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)).background(Color.White))
+                }
             }
-            Box(Modifier.offset(x = 190.dp, y = 120.dp).size(settings.floatConfig.widthDp.dp, settings.floatConfig.heightDp.dp)) {
-                FloatContent(settings, snapshot)
+            Box(
+                Modifier.offset(x = 196.dp, y = 112.dp)
+                    .shadow(16.dp, RoundedCornerShape(shown.floatConfig.cornerDp.dp))
+                    .size(shown.floatConfig.widthDp.dp, shown.floatConfig.heightDp.dp),
+            ) {
+                FloatContent(shown, snapshot)
             }
         }
     }

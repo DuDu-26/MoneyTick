@@ -117,7 +117,7 @@ fun OnboardingScreen(settings: AppSettings, onFinish: ((AppSettings) -> AppSetti
                     val w by animateDpAsState(if (i == step) 24.dp else 8.dp, tween(220), label = "dot")
                     Box(
                         Modifier.padding(end = 6.dp).height(8.dp).width(w).clip(CircleShape)
-                            .background(if (i <= step) extraColors.ink else extraColors.subtle),
+                            .background(if (i <= step) extraColors.ink else MaterialTheme.colorScheme.outline),
                     )
                 }
                 Spacer(Modifier.weight(1f))
