@@ -54,8 +54,8 @@ fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modi
     // halo in the opposite brightness to stay readable on any wallpaper.
     val shadow = if (transparent) {
         Shadow(
-            color = (if (fg.luminance() > 0.5f) Color.Black else Color.White).copy(alpha = 0.6f),
-            offset = Offset(0f, 1f), blurRadius = 8f,
+            color = (if (fg.luminance() > 0.5f) Color.Black else Color.White).copy(alpha = 0.9f),
+            offset = Offset(0f, 0f), blurRadius = 10f,
         )
     } else {
         null

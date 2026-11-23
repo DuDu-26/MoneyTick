@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import com.github.takahirom.roborazzi.captureRoboImage
 import io.github.dudu26.moneytick.core.AppSettings
 import io.github.dudu26.moneytick.core.FloatConfig
@@ -70,7 +72,7 @@ class ScreenshotTest {
         ),
     )
 
-    private fun shot(name: String, dark: Boolean = false, content: @Composable () -> Unit) {
+    private fun shot(name: String, dark: Boolean = false, scrollTo: String? = null, content: @Composable () -> Unit) {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             CompositionLocalProvider(LocalNow provides { now }) {
@@ -78,6 +80,10 @@ class ScreenshotTest {
             }
         }
         repeat(30) { compose.mainClock.advanceTimeByFrame() }
+        scrollTo?.let {
+            compose.onNodeWithText(it).performScrollTo()
+            repeat(10) { compose.mainClock.advanceTimeByFrame() }
+        }
         val dir = File(System.getProperty("user.dir"), "../docs/screenshots").apply { mkdirs() }
         compose.onRoot().captureRoboImage(File(dir, "$name.png").path)
     }
@@ -87,6 +93,10 @@ class ScreenshotTest {
     @Test fun dashboardDark() = shot("dashboard-dark", dark = true) { DashboardScreen(settings, onNavigate = {}) }
 
     @Test fun floatSettings() = shot("float-settings") { FloatSettingsScreen(settings, onChange = {}, onBack = {}) }
+
+    @Test fun floatSettingsSize() = shot("float-settings-size", scrollTo = "颜色") {
+        FloatSettingsScreen(settings, onChange = {}, onBack = {})
+    }
 
     @Test fun salarySettings() = shot("salary-settings") { SalarySettingsScreen(settings, onSave = {}, onBack = {}) }
 
