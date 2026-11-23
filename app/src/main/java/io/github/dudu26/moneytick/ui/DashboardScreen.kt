@@ -51,6 +51,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.border
+import androidx.compose.runtime.remember
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -102,11 +110,13 @@ fun DashboardScreen(
         }
     }
 
+    val hazeState = remember { HazeState() }
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {
             Column(
                 Modifier
                     .fillMaxSize()
+                    .hazeSource(hazeState)
                     .verticalScroll(rememberScrollState())
                     .statusBarsPadding()
                     .padding(horizontal = 20.dp),
@@ -143,7 +153,8 @@ fun DashboardScreen(
                 floatRunning = floatRunning,
                 onToggleFloat = { toggleFloat() },
                 onNavigate = onNavigate,
-                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp),
+                hazeState = hazeState,
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
             )
         }
     }
@@ -319,10 +330,40 @@ private fun FloatStatusRow(running: Boolean, schedule: String) {
     }
 }
 
+/**
+ * Frosted-glass dock. The page scrolls underneath it and is blurred live (Android 12+), with a
+ * translucent tint, a bright hairline rim and a soft shadow on top. Older Android versions get a
+ * near-opaque tint instead of the blur. Flat colours only: no gradients.
+ */
 @Composable
-private fun Dock(floatRunning: Boolean, onToggleFloat: () -> Unit, onNavigate: (Screen) -> Unit, modifier: Modifier) {
+private fun Dock(
+    floatRunning: Boolean,
+    onToggleFloat: () -> Unit,
+    onNavigate: (Screen) -> Unit,
+    hazeState: HazeState,
+    modifier: Modifier,
+) {
+    val c = extraColors
+    val shape = RoundedCornerShape(percent = 50)
+    val background = MaterialTheme.colorScheme.background
     Row(
-        modifier.fillMaxWidth().height(76.dp).softCard(RoundedCornerShape(32.dp), elevation = 24.dp).padding(horizontal = 8.dp),
+        modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .shadow(28.dp, shape, clip = false, ambientColor = c.shadow.copy(alpha = 0.10f), spotColor = c.shadow.copy(alpha = 0.18f))
+            .clip(shape)
+            .hazeEffect(
+                state = hazeState,
+                style = HazeStyle(
+                    backgroundColor = background,
+                    tint = HazeTint(c.glassTint),
+                    blurRadius = 24.dp,
+                    noiseFactor = 0f,
+                    fallbackTint = HazeTint(c.card.copy(alpha = 0.94f)),
+                ),
+            )
+            .border(1.dp, c.glassRim, shape)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DockItem(Icons.Rounded.Home, "首页", selected = true, Modifier.weight(1f)) {}
@@ -332,7 +373,7 @@ private fun Dock(floatRunning: Boolean, onToggleFloat: () -> Unit, onNavigate: (
                 if (floatRunning) Icons.Rounded.Close else Icons.Rounded.PlayArrow,
                 if (floatRunning) "隐藏悬浮窗" else "显示悬浮窗",
                 onToggleFloat,
-                size = 58.dp,
+                size = 52.dp,
             )
         }
         DockItem(Icons.Rounded.DateRange, "薪资", selected = false, Modifier.weight(1f)) { onNavigate(Screen.SALARY) }
@@ -342,14 +383,25 @@ private fun Dock(floatRunning: Boolean, onToggleFloat: () -> Unit, onNavigate: (
 
 @Composable
 private fun DockItem(icon: ImageVector, label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val tint = if (selected) extraColors.accent else MaterialTheme.colorScheme.onSurfaceVariant
+    val c = extraColors
+    val tint = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+    val lens = RoundedCornerShape(percent = 50)
     Column(
-        modifier.fillMaxHeight().clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick),
+        modifier
+            .fillMaxHeight()
+            .padding(horizontal = 2.dp)
+            .clip(lens)
+            .then(if (selected) Modifier.background(c.glassLens).border(1.dp, c.glassRim, lens) else Modifier)
+            .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = tint, modifier = Modifier.padding(top = 3.dp))
+        Icon(icon, contentDescription = null, tint = if (selected) c.accent else tint, modifier = Modifier.size(22.dp))
+        Text(
+            label, style = MaterialTheme.typography.labelSmall, color = tint,
+            fontWeight = if (selected) FontWeight.SemiBold else null,
+            modifier = Modifier.padding(top = 2.dp),
+        )
     }
 }
 

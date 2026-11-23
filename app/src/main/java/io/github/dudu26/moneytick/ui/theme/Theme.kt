@@ -40,6 +40,10 @@ data class ExtraColors(
     val subtle: Color,
     val ink: Color,
     val onInk: Color,
+    /** Frosted-glass dock: translucent tint over the blurred page, a bright rim, and the selected "lens". */
+    val glassTint: Color,
+    val glassRim: Color,
+    val glassLens: Color,
 )
 
 private val LightExtra = ExtraColors(
@@ -52,6 +56,9 @@ private val LightExtra = ExtraColors(
     subtle = Color(0xFFF3F4F6),
     ink = Color(0xFF111215),
     onInk = Color.White,
+    glassTint = Color.White.copy(alpha = 0.58f),
+    glassRim = Color.White.copy(alpha = 0.9f),
+    glassLens = Color.White.copy(alpha = 0.85f),
 )
 
 private val DarkExtra = ExtraColors(
@@ -64,6 +71,9 @@ private val DarkExtra = ExtraColors(
     subtle = Color(0xFF24262B),
     ink = Color(0xFFF5F5F7),
     onInk = Color(0xFF111215),
+    glassTint = Color(0xFF1A1B1F).copy(alpha = 0.6f),
+    glassRim = Color.White.copy(alpha = 0.12f),
+    glassLens = Color.White.copy(alpha = 0.10f),
 )
 
 val LocalExtraColors = staticCompositionLocalOf { LightExtra }

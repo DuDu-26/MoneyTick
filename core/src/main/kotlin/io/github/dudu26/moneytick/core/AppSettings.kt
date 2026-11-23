@@ -25,11 +25,13 @@ data class FloatConfig(
     /** 0.1–1.0, same range as PayDance's mini window opacity. */
     val opacity: Float = 0.9f,
     val backgroundArgb: Long = 0xFFFFFFFF,
+    /** No card behind the text at all: just the numbers floating over whatever is on screen. */
+    val transparentBackground: Boolean = false,
     val textArgb: Long = 0xFF111215,
     val cornerDp: Int = 16,
     val x: Int = 40,
     val y: Int = 200,
-    /** Locked windows ignore drag and resize so they cannot be moved by accident. */
+    /** Locked windows ignore dragging so they cannot be moved by accident. */
     val locked: Boolean = false,
     /** Double-tapping the window hides it by default; it is shown again from the app. */
     val doubleTapAction: DoubleTapAction = DoubleTapAction.HIDE,

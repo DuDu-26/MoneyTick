@@ -3,7 +3,25 @@
 
 package io.github.dudu26.moneytick.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
+import io.github.dudu26.moneytick.ui.theme.NumberStyle
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -27,8 +45,6 @@ import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,13 +80,14 @@ private val itemLabels = linkedMapOf(
     FloatItem.PAYDAY to "发薪倒计时",
 )
 
-private data class StylePreset(val name: String, val bg: Long, val fg: Long, val opacity: Float)
+private data class StylePreset(val name: String, val bg: Long, val fg: Long, val opacity: Float, val transparent: Boolean = false)
 
 private val presets = listOf(
     StylePreset("清透白", 0xFFFFFFFF, 0xFF111215, 0.92f),
     StylePreset("曜石黑", 0xFF111215, 0xFFFFFFFF, 0.9f),
     StylePreset("暖橙", 0xFFFFF1E2, 0xFFE07A1F, 0.95f),
     StylePreset("极简", 0xFF000000, 0xFFFFFFFF, 0.35f),
+    StylePreset("透明", 0xFFFFFFFF, 0xFF111215, 1f, transparent = true),
 )
 
 private val bgSwatches = listOf(0xFFFFFFFF, 0xFFF3F4F6, 0xFF111215, 0xFFFFF1E2, 0xFFE8F3FF, 0xFFEAF7EF)
@@ -85,7 +102,7 @@ fun FloatSettingsScreen(settings: AppSettings, onChange: ((AppSettings) -> AppSe
 
     LargeTitlePage("自定义悬浮窗", onBack) {
         Text(
-            "改动即时生效。拖动移动，拖右下角缩放。",
+            "改动即时生效。在桌面上拖动悬浮窗可以挪位置，大小在这里调。",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
@@ -117,13 +134,21 @@ fun FloatSettingsScreen(settings: AppSettings, onChange: ((AppSettings) -> AppSe
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             presets.forEach { p ->
-                val selected = f.backgroundArgb == p.bg && f.textArgb == p.fg && kotlin.math.abs(f.opacity - p.opacity) < 0.01f
+                val selected = f.transparentBackground == p.transparent && f.textArgb == p.fg &&
+                    (p.transparent || f.backgroundArgb == p.bg) && kotlin.math.abs(f.opacity - p.opacity) < 0.01f
                 Column(
                     Modifier
                         .width(108.dp)
                         .softCard(RoundedCornerShape(20.dp), elevation = 10.dp)
                         .then(if (selected) Modifier.border(2.dp, c.ink, RoundedCornerShape(20.dp)) else Modifier)
-                        .clickable { edit { it.copy(backgroundArgb = p.bg, textArgb = p.fg, opacity = p.opacity) } }
+                        .clickable {
+                            edit {
+                                it.copy(
+                                    backgroundArgb = if (p.transparent) it.backgroundArgb else p.bg,
+                                    textArgb = p.fg, opacity = p.opacity, transparentBackground = p.transparent,
+                                )
+                            }
+                        }
                         .padding(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -133,10 +158,13 @@ fun FloatSettingsScreen(settings: AppSettings, onChange: ((AppSettings) -> AppSe
                     ) {
                         Box(
                             Modifier.clip(RoundedCornerShape(10.dp))
-                                .background(Color(p.bg.toInt()).copy(alpha = p.opacity))
+                                .then(if (p.transparent) Modifier else Modifier.background(Color(p.bg.toInt()).copy(alpha = p.opacity)))
                                 .padding(horizontal = 8.dp, vertical = 3.dp),
                         ) {
-                            Text("¥128.50", color = Color(p.fg.toInt()), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "¥128.50", color = Color(p.fg.toInt()), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                style = if (p.transparent) TextStyle(shadow = Shadow(Color.White, Offset(0f, 1f), 6f)) else TextStyle.Default,
+                            )
                         }
                     }
                     Text(p.name, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
@@ -193,14 +221,16 @@ fun FloatSettingsScreen(settings: AppSettings, onChange: ((AppSettings) -> AppSe
             }
         }
 
-        SectionHeader("尺寸")
+        SectionHeader("尺寸与外观")
         GroupCard {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                SoftSlider("宽度", "${f.widthDp}", f.widthDp.toFloat(), FloatConfig.MIN_WIDTH_DP.toFloat()..FloatConfig.MAX_WIDTH_DP.toFloat()) { v -> edit { it.copy(widthDp = v.roundToInt()) } }
-                SoftSlider("高度", "${f.heightDp}", f.heightDp.toFloat(), FloatConfig.MIN_HEIGHT_DP.toFloat()..FloatConfig.MAX_HEIGHT_DP.toFloat()) { v -> edit { it.copy(heightDp = v.roundToInt()) } }
-                SoftSlider("字号", "${"%.1f".format(f.fontScale)}×", f.fontScale, 0.5f..3f) { v -> edit { it.copy(fontScale = v) } }
-                SoftSlider("不透明度", "${(f.opacity * 100).roundToInt()}%", f.opacity, 0.1f..1f) { v -> edit { it.copy(opacity = v) } }
-                SoftSlider("圆角", "${f.cornerDp}", f.cornerDp.toFloat(), 0f..40f) { v -> edit { it.copy(cornerDp = v.roundToInt()) } }
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                PillSlider("宽度", "${f.widthDp} dp", f.widthDp.toFloat(), FloatConfig.MIN_WIDTH_DP.toFloat()..FloatConfig.MAX_WIDTH_DP.toFloat()) { v -> edit { it.copy(widthDp = v.roundToInt()) } }
+                PillSlider("高度", "${f.heightDp} dp", f.heightDp.toFloat(), FloatConfig.MIN_HEIGHT_DP.toFloat()..FloatConfig.MAX_HEIGHT_DP.toFloat()) { v -> edit { it.copy(heightDp = v.roundToInt()) } }
+                PillSlider("字号", "${"%.1f".format(f.fontScale)}×", f.fontScale, 0.5f..3f) { v -> edit { it.copy(fontScale = (v * 10).roundToInt() / 10f) } }
+                PillSlider("不透明度", "${(f.opacity * 100).roundToInt()}%", f.opacity, 0.1f..1f) { v -> edit { it.copy(opacity = (v * 100).roundToInt() / 100f) } }
+                if (!f.transparentBackground) {
+                    PillSlider("圆角", "${f.cornerDp} dp", f.cornerDp.toFloat(), 0f..40f) { v -> edit { it.copy(cornerDp = v.roundToInt()) } }
+                }
             }
         }
 
@@ -208,9 +238,20 @@ fun FloatSettingsScreen(settings: AppSettings, onChange: ((AppSettings) -> AppSe
         GroupCard {
             Column(Modifier.padding(16.dp)) {
                 Text("背景", style = MaterialTheme.typography.bodyLarge)
-                Swatches(bgSwatches, f.backgroundArgb) { col -> edit { it.copy(backgroundArgb = col) } }
+                Swatches(
+                    bgSwatches, if (f.transparentBackground) null else f.backgroundArgb,
+                    transparentSelected = f.transparentBackground,
+                    onTransparent = { edit { it.copy(transparentBackground = true) } },
+                ) { col -> edit { it.copy(backgroundArgb = col, transparentBackground = false) } }
                 Text("文字", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 10.dp))
                 Swatches(fgSwatches, f.textArgb) { col -> edit { it.copy(textArgb = col) } }
+                if (f.transparentBackground) {
+                    Text(
+                        "透明背景下文字会带一圈淡淡的描边，放在哪都看得清",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                }
             }
         }
 
@@ -230,7 +271,7 @@ fun FloatSettingsScreen(settings: AppSettings, onChange: ((AppSettings) -> AppSe
             }
             RowDivider()
             SettingRow(
-                "锁定位置和大小", "防止误触拖动", Icons.Rounded.Lock,
+                "锁定位置", "防止误触拖动", Icons.Rounded.Lock,
                 trailing = { Switch(checked = f.locked, onCheckedChange = { on -> edit { it.copy(locked = on) } }) },
             )
         }
@@ -250,42 +291,112 @@ private fun RoundIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, des
     }
 }
 
+/**
+ * A thick pill slider in the style of phone control centres: the label and value sit inside the
+ * track, and the dark fill grows from the left. Text under the fill flips to the light colour so
+ * it stays readable at any position. Drag anywhere to adjust relatively; tap to jump.
+ */
 @Composable
-private fun SoftSlider(label: String, value: String, current: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+private fun PillSlider(
+    label: String,
+    value: String,
+    current: Float,
+    range: ClosedFloatingPointRange<Float>,
+    onChange: (Float) -> Unit,
+) {
     val c = extraColors
-    Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(
-            value,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.clip(CircleShape).background(c.subtle).padding(horizontal = 10.dp, vertical = 4.dp),
-        )
+    val height = 52.dp
+    val shape = RoundedCornerShape(percent = 50)
+    val span = range.endInclusive - range.start
+    val fraction = ((current - range.start) / span).coerceIn(0f, 1f)
+    val latestValue by rememberUpdatedState(current)
+    val latestOnChange by rememberUpdatedState(onChange)
+    BoxWithConstraints(
+        Modifier
+            .fillMaxWidth()
+            .height(height)
+            .clip(shape)
+            .background(c.subtle)
+            .semantics { contentDescription = "$label $value" }
+            .pointerInput(range) {
+                detectTapGestures { o ->
+                    latestOnChange(range.start + span * (o.x / size.width).coerceIn(0f, 1f))
+                }
+            }
+            .pointerInput(range) {
+                var dragged = 0f
+                detectHorizontalDragGestures(onDragStart = { dragged = latestValue }) { change, dx ->
+                    change.consume()
+                    dragged = (dragged + dx / size.width * span).coerceIn(range.start, range.endInclusive)
+                    latestOnChange(dragged)
+                }
+            },
+    ) {
+        val full = maxWidth
+        val fillWidth = height + (full - height) * fraction
+        PillLabels(label, value, c.ink, full)
+        Box(Modifier.fillMaxHeight().width(fillWidth).clip(shape).background(c.ink)) {
+            Box(Modifier.wrapContentWidth(Alignment.Start, unbounded = true)) {
+                PillLabels(label, value, c.onInk, full)
+            }
+        }
     }
-    Slider(
-        value = current, onValueChange = onChange, valueRange = range,
-        colors = SliderDefaults.colors(
-            thumbColor = c.ink, activeTrackColor = c.ink, inactiveTrackColor = c.subtle,
-        ),
-        modifier = Modifier.fillMaxWidth().height(36.dp),
-    )
 }
 
 @Composable
-private fun Swatches(colors: List<Long>, selected: Long, onPick: (Long) -> Unit) {
-    val c = extraColors
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 10.dp)) {
-        colors.forEach { argb ->
-            val color = Color(argb.toInt())
-            val isSelected = argb == selected
-            Box(
-                Modifier
-                    .size(36.dp)
-                    .then(if (isSelected) Modifier.border(2.dp, c.ink, CircleShape).padding(4.dp) else Modifier)
-                    .clip(CircleShape)
-                    .background(color)
-                    .border(1.dp, c.cardBorder, CircleShape)
-                    .clickable { onPick(argb) },
-            )
+private fun PillLabels(label: String, value: String, color: Color, width: Dp) {
+    Row(
+        Modifier.width(width).fillMaxHeight().padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = color, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        Text(value, color = color.copy(alpha = 0.75f), style = MaterialTheme.typography.bodyMedium.merge(NumberStyle))
+    }
+}
+
+@Composable
+private fun Swatches(
+    colors: List<Long>,
+    selected: Long?,
+    transparentSelected: Boolean = false,
+    onTransparent: (() -> Unit)? = null,
+    onPick: (Long) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()),
+    ) {
+        if (onTransparent != null) {
+            SwatchDot(transparentSelected, onTransparent) {
+                // Checkerboard: the usual "nothing here" pattern.
+                Canvas(Modifier.fillMaxSize()) {
+                    val cell = size.width / 4
+                    drawRect(Color.White)
+                    for (i in 0 until 4) for (j in 0 until 4) {
+                        if ((i + j) % 2 == 0) drawRect(Color(0xFFD9DCE1), Offset(i * cell, j * cell), Size(cell, cell))
+                    }
+                }
+            }
         }
+        colors.forEach { argb ->
+            SwatchDot(argb == selected, { onPick(argb) }) {
+                Box(Modifier.fillMaxSize().background(Color(argb.toInt())))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SwatchDot(selected: Boolean, onClick: () -> Unit, fill: @Composable () -> Unit) {
+    val c = extraColors
+    Box(
+        Modifier
+            .size(36.dp)
+            .then(if (selected) Modifier.border(2.dp, c.ink, CircleShape).padding(4.dp) else Modifier)
+            .clip(CircleShape)
+            .border(1.dp, c.cardBorder, CircleShape)
+            .clickable(onClick = onClick),
+    ) {
+        fill()
     }
 }

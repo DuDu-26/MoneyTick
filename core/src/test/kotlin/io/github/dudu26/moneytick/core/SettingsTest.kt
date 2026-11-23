@@ -17,6 +17,14 @@ class SettingsTest {
         assertEquals(AppSettings(), AppSettings.decode(null))
     }
 
+    @Test fun transparentBackgroundSurvivesAndDefaultsOff() {
+        val s = AppSettings(floatConfig = FloatConfig(transparentBackground = true))
+        assertEquals(true, AppSettings.decode(AppSettings.encode(s)).floatConfig.transparentBackground)
+        // Settings saved by v0.4 have no such field.
+        val old = AppSettings.encode(AppSettings()).replace("\"transparentBackground\":false,", "")
+        assertEquals(false, AppSettings.decode(old).floatConfig.transparentBackground)
+    }
+
     @Test fun floatConfigIsClamped() {
         val f = FloatConfig(widthDp = 1, heightDp = 9999, opacity = 0f, items = emptyList()).normalized()
         assertEquals(FloatConfig.MIN_WIDTH_DP, f.widthDp)

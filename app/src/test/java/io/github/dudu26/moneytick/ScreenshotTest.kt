@@ -96,8 +96,17 @@ class ScreenshotTest {
 
     /** The floating window on top of a mock chat app, to show what it looks like in use. */
     @Test fun floatingWindow() = shot("floating-window") {
-        val snapshot = rememberSalarySnapshot(settings.salary)
-        val shown = settings.copy(floatConfig = settings.floatConfig.copy(opacity = 1f))
+        MockPhone(settings.copy(floatConfig = settings.floatConfig.copy(opacity = 1f)))
+    }
+
+    /** Same, with the transparent background: just the numbers over the app. */
+    @Test fun floatingWindowTransparent() = shot("floating-window-transparent") {
+        MockPhone(settings.copy(floatConfig = settings.floatConfig.copy(opacity = 1f, transparentBackground = true)))
+    }
+
+    @Composable
+    private fun MockPhone(shown: AppSettings) {
+        val snapshot = rememberSalarySnapshot(shown.salary)
         Box(Modifier.fillMaxSize().background(Color(0xFFEDEDED))) {
             Column(Modifier.fillMaxSize()) {
                 // Fake chat header
@@ -127,7 +136,7 @@ class ScreenshotTest {
             }
             Box(
                 Modifier.offset(x = 196.dp, y = 112.dp)
-                    .shadow(16.dp, RoundedCornerShape(shown.floatConfig.cornerDp.dp))
+                    .then(if (shown.floatConfig.transparentBackground) Modifier else Modifier.shadow(16.dp, RoundedCornerShape(shown.floatConfig.cornerDp.dp)))
                     .size(shown.floatConfig.widthDp.dp, shown.floatConfig.heightDp.dp),
             ) {
                 FloatContent(shown, snapshot)

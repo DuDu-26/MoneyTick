@@ -19,7 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -46,13 +49,26 @@ fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modi
     val fg = Color(f.textArgb.toInt())
     val scale = f.fontScale
     val payday = if (FloatItem.PAYDAY in f.items) rememberPayday(settings, snapshot) else null
+    val transparent = f.transparentBackground
+    // Without a card behind it the text sits straight on top of other apps, so give it a soft
+    // halo in the opposite brightness to stay readable on any wallpaper.
+    val shadow = if (transparent) {
+        Shadow(
+            color = (if (fg.luminance() > 0.5f) Color.Black else Color.White).copy(alpha = 0.6f),
+            offset = Offset(0f, 1f), blurRadius = 8f,
+        )
+    } else {
+        null
+    }
+    val shape = RoundedCornerShape(f.cornerDp.dp)
     Column(
         modifier = modifier
             .fillMaxSize()
             .alpha(f.opacity)
-            .clip(RoundedCornerShape(f.cornerDp.dp))
-            .background(Color(f.backgroundArgb.toInt()))
-            .border(1.dp, fg.copy(alpha = 0.08f), RoundedCornerShape(f.cornerDp.dp))
+            .then(
+                if (transparent) Modifier
+                else Modifier.clip(shape).background(Color(f.backgroundArgb.toInt())).border(1.dp, fg.copy(alpha = 0.08f), shape),
+            )
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -62,12 +78,12 @@ fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modi
                 FloatItem.AMOUNT -> Text(
                     formatAmount(snapshot.earnedToday, settings.currencySymbol),
                     color = fg, fontSize = (22 * scale).sp, fontWeight = FontWeight.SemiBold,
-                    style = TextStyle(fontFeatureSettings = "tnum"), maxLines = 1, overflow = TextOverflow.Clip,
+                    style = TextStyle(fontFeatureSettings = "tnum", shadow = shadow), maxLines = 1, overflow = TextOverflow.Clip,
                 )
-                FloatItem.STATUS -> SmallText(statusText(snapshot), fg, scale)
+                FloatItem.STATUS -> SmallText(statusText(snapshot), fg, scale, shadow)
                 FloatItem.PROGRESS -> LinearProgressIndicator(
                     progress = { snapshot.progress.toFloat() },
-                    color = fg, trackColor = fg.copy(alpha = 0.15f),
+                    color = fg, trackColor = fg.copy(alpha = if (transparent) 0.3f else 0.15f),
                     strokeCap = StrokeCap.Round, gapSize = 0.dp, drawStopIndicator = {},
                     modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp).height((4 * scale).dp),
                 )
@@ -76,14 +92,14 @@ fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modi
                         label == "今日完成" -> "${(snapshot.progress * 100).toInt()}%"
                         else -> formatDuration(snapshot.nextTransitionMs)
                     }
-                    SmallText("$label $value", fg, scale)
+                    SmallText("$label $value", fg, scale, shadow)
                 }
                 FloatItem.SECOND_RATE -> SmallText(
-                    "秒薪 " + formatAmount(snapshot.secondRate, settings.currencySymbol, 4), fg, scale,
+                    "秒薪 " + formatAmount(snapshot.secondRate, settings.currencySymbol, 4), fg, scale, shadow,
                 )
-                FloatItem.PAYDAY -> payday?.let { SmallText(paydayText(it.daysUntil), fg, scale) }
+                FloatItem.PAYDAY -> payday?.let { SmallText(paydayText(it.daysUntil), fg, scale, shadow) }
                 FloatItem.DAILY_TARGET -> SmallText(
-                    "今日预计 " + formatAmount(snapshot.dailySalary, settings.currencySymbol), fg, scale,
+                    "今日预计 " + formatAmount(snapshot.dailySalary, settings.currencySymbol), fg, scale, shadow,
                 )
             }
         }
@@ -91,5 +107,8 @@ fun FloatContent(settings: AppSettings, snapshot: SalarySnapshot, modifier: Modi
 }
 
 @Composable
-private fun SmallText(text: String, color: Color, scale: Float) =
-    Text(text, color = color.copy(alpha = 0.85f), fontSize = (12 * scale).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+private fun SmallText(text: String, color: Color, scale: Float, shadow: Shadow?) =
+    Text(
+        text, color = color.copy(alpha = 0.85f), fontSize = (12 * scale).sp, maxLines = 1,
+        overflow = TextOverflow.Ellipsis, style = TextStyle(shadow = shadow),
+    )

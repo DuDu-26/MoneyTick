@@ -19,19 +19,11 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -72,7 +64,7 @@ import kotlin.math.roundToInt
 /**
  * Foreground service that owns the floating window (TYPE_APPLICATION_OVERLAY) and, when
  * enabled, the live "today's earnings" notification. It runs while either is wanted.
- * Drag the body to move, drag the corner handle to resize, double-tap to hide (or open the app).
+ * Drag to move (size is set on the customize screen), double-tap to hide (or open the app).
  */
 class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
     private val savedStateController = SavedStateRegistryController.create(this)
@@ -95,7 +87,6 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
 
     private val density get() = resources.displayMetrics.density
     private fun Int.dpToPx() = (this * density).roundToInt()
-    private fun Int.pxToDp() = (this / density).roundToInt()
 
     override fun onCreate() {
         savedStateController.performAttach()
@@ -247,21 +238,10 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
                 val settings by repo.settings.collectAsStateWithLifecycle()
                 val visible by screenOn.collectAsStateWithLifecycle()
                 val snapshot = rememberSalarySnapshot(settings.salary, settings.refreshRate, visible)
-                Box(Modifier.fillMaxSize()) {
-                    FloatContent(
-                        settings, snapshot,
-                        Modifier.pointerInteropFilter { onBodyTouch(it, settings.floatConfig.locked) },
-                    )
-                    if (!settings.floatConfig.locked) {
-                        Box(
-                            Modifier
-                                .align(Alignment.BottomEnd)
-                                .size(18.dp)
-                                .background(Color(settings.floatConfig.textArgb.toInt()).copy(alpha = 0.18f), RoundedCornerShape(topStart = 10.dp))
-                                .pointerInteropFilter { onResizeTouch(it) },
-                        )
-                    }
-                }
+                FloatContent(
+                    settings, snapshot,
+                    Modifier.pointerInteropFilter { onBodyTouch(it, settings.floatConfig.locked) },
+                )
             }
         }
         windowManager.addView(composeView, params)
@@ -289,8 +269,6 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
     private var downRawY = 0f
     private var startX = 0
     private var startY = 0
-    private var startW = 0
-    private var startH = 0
     private var moved = false
     private var lastTapAt = 0L
 
@@ -328,28 +306,6 @@ class FloatingWindowService : LifecycleService(), SavedStateRegistryOwner {
                         lastTapAt = now
                     }
                 }
-            }
-        }
-        return true
-    }
-
-    private fun onResizeTouch(e: MotionEvent): Boolean {
-        when (e.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                downRawX = e.rawX; downRawY = e.rawY
-                startW = params.width; startH = params.height
-                gestureActive = true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                params.width = (startW + (e.rawX - downRawX).roundToInt())
-                    .coerceIn(FloatConfig.MIN_WIDTH_DP.dpToPx(), FloatConfig.MAX_WIDTH_DP.dpToPx())
-                params.height = (startH + (e.rawY - downRawY).roundToInt())
-                    .coerceIn(FloatConfig.MIN_HEIGHT_DP.dpToPx(), FloatConfig.MAX_HEIGHT_DP.dpToPx())
-                view?.let { windowManager.updateViewLayout(it, params) }
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                gestureActive = false
-                persist { it.copy(widthDp = params.width.pxToDp(), heightDp = params.height.pxToDp()) }
             }
         }
         return true
