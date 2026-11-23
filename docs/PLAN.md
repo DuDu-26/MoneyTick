@@ -33,7 +33,7 @@ PayDance 是 Windows 桌面实时工资看板（Tauri 2 + Vue 3），核心功�
   - `core`：纯 Kotlin。逐行移植 PayDance `src/lib/salary`（工作时段、午休、夜班、校验、快照计算）和货币符号处理，并新增设置模型 `AppSettings` / `FloatConfig`。JUnit 测试覆盖。
   - `app`：Activity（看板、薪资设置、悬浮窗设置、关于）+ `FloatingWindowService`。
 - **悬浮窗**：`SYSTEM_ALERT_WINDOW` 权限 + 前台服务（Android 14 起使用 `specialUse` 类型）+ `WindowManager` 的 `TYPE_APPLICATION_OVERLAY` 窗口，内容用 `ComposeView` 绘制。
-  - 拖动/缩放用原始屏幕坐标计算，避免窗口移动造成抖动；松手后把位置、尺寸写回设置。
+  - 拖动用原始屏幕坐标计算，避免窗口移动造成抖动；松手后把位置写回设置。尺寸只在自定义页调（v0.5 起去掉了窗口上的缩放角标）。
   - 设置页改动通过 `StateFlow` 实时推给悬浮窗，所见即所得（设置页有预览）。
 - **省电**：刷新由 `nextTickDelayMs` 决定，上班时按“每涨 1 分钱”刷新（或用户选的 1 秒 / 5 秒 / 1 分钟），倒计时阶段每秒，下班/休息日每分钟；息屏（`ACTION_SCREEN_OFF`）和 Activity 不可见时计时协程直接停掉，不保持唤醒锁。
 - **存储**：`SharedPreferences` 里存一份 JSON（kotlinx.serialization），带 `schemaVersion`，损坏时回落默认值。
@@ -44,6 +44,7 @@ PayDance 是 Windows 桌面实时工资看板（Tauri 2 + Vue 3），核心功�
 1. **阶段 1：骨架与核心（本次）**：核心算法 + 测试、看板、薪资设置、可调悬浮窗、CI 打包。
 2. **阶段 2：体验打磨**：金额滚动动画、首次启动向导、时间选择器替代手输、悬浮窗贴边吸附、横竖屏/多分辨率适配、正式 App 图标。
 3. **阶段 3：系统集成**：开机后自动恢复悬浮窗、~~通知栏常驻金额~~（v0.4 已完成）、桌面小组件（Glance）、快捷设置磁贴、中英双语。另：v0.4 新增发薪倒计时与本期已挣。
+4. **v0.5**：悬浮窗去掉缩放角标、透明背景、药丸滑块、首页毛玻璃 Dock（Haze 实时模糊）。
 4. **阶段 4：发布与维护**：正式签名密钥、GitHub Release 检查更新、可能的 F-Droid 上架、Issue/PR 模板。
 
 ## 4. 许可证要点（必须遵守）

@@ -31,7 +31,7 @@ It won't make your salary bigger. It might make your workday a little nicer.
 ## Features
 
 - **Live earnings**: today's total ticks up one cent at a time. Monthly, daily and hourly pay are all supported, along with custom workdays, unpaid lunch breaks and night shifts that cross midnight.
-- **Floating window**: sits on top of any app. Drag it to move it, drag the corner to resize it. You choose what it shows (amount, status, progress bar, time until clocking out, per-second rate, today's target, days to payday) and in what order. Size, font, opacity, corner radius and colours are all adjustable, and there are four ready-made styles.
+- **Floating window**: sits on top of any app. Drag it to move it; its size is set with sliders on the customize screen, so the window itself has no handles. You choose what it shows (amount, status, progress bar, time until clocking out, per-second rate, today's target, days to payday) and in what order. Size, font, opacity, corner radius and colours are all adjustable. The background can even be fully transparent, leaving just the numbers floating on screen. There are five ready-made styles.
 - **Instant vanish**: double-tap the floating window and it disappears. Very handy when the boss walks by. Tap the black button on the home screen to bring it back.
 - **Payday countdown**: tell it which day you get paid. The home screen then shows how many days are left and how much you've earned so far this pay period.
 - **Notification shade**: pull down to see today's earnings, time until clocking out and days to payday.
